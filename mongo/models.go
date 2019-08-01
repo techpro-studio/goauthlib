@@ -1,7 +1,7 @@
 package mongo
 
 import (
-	"github.com/techpro-studio/goauthlib"
+	auth "github.com/techpro-studio/goauthlib"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
