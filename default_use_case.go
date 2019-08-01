@@ -14,6 +14,11 @@ type Config struct {
 	sharedSecret string
 }
 
+func NewConfig(sharedSecret string) *Config {
+	return &Config{sharedSecret: sharedSecret}
+}
+
+
 type DefaultUseCase struct {
 	SocialProviders map[string]Provider
 	repository      Repository
