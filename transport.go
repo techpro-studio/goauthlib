@@ -11,6 +11,10 @@ type Transport struct {
 	defaultMiddleWare gohttplib.Middleware
 }
 
+func NewTransport(useCase UseCase, defaultMiddleWare gohttplib.Middleware) *Transport {
+	return &Transport{useCase: useCase, defaultMiddleWare: defaultMiddleWare}
+}
+
 func (t *Transport) withBody(w http.ResponseWriter, r *http.Request, handler func(body map[string]interface{})(interface{}, error)){
 	body, err := gohttplib.GetBody(r)
 	if err != nil{
