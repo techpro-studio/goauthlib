@@ -24,7 +24,8 @@ func (repo *Repository) GetVerificationForEntity(entity goauthlib.AuthorizationE
 }
 
 func (repo *Repository) CreateVerification(entity goauthlib.AuthorizationEntity, verificationCode string) *goauthlib.Verification {
-	ctx, _ := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
 	q := bson.M{"destination": entity.Value, "destination_type": entity.Type}
 	m := mongoVerification{
 		ID:              primitive.NewObjectID(),
@@ -69,7 +70,8 @@ func (repo *Repository) CreateForSocial(result *social.ProviderResult) *goauthli
 		ID:       primitive.NewObjectID(),
 		Entities: entities,
 	}
-	ctx, _ := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
 	_, err := repo.Client.Database(dbName).Collection(userCollection).InsertOne(ctx, mongoUser)
 	if err != nil {
 		panic(err)
@@ -78,7 +80,8 @@ func (repo *Repository) CreateForSocial(result *social.ProviderResult) *goauthli
 }
 
 func (repo *Repository) getOneUser(query bson.M) *goauthlib.User {
-	ctx, _ := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
 	res := repo.Client.Database(dbName).Collection(userCollection).FindOne(ctx,  query)
 	if res.Err() != nil {
 		panic(res.Err().Error())
@@ -92,7 +95,8 @@ func (repo *Repository) getOneUser(query bson.M) *goauthlib.User {
 }
 
 func (repo *Repository) getOneVerification(query bson.M) *goauthlib.Verification {
-	ctx, _ := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
 	res := repo.Client.Database(dbName).Collection(verificationCollection).FindOne(ctx,  query)
 	if res.Err() != nil {
 		panic(res.Err().Error())
@@ -114,7 +118,8 @@ func (repo *Repository) CreateForEntity(entity goauthlib.AuthorizationEntity) *g
 		ID:       primitive.NewObjectID(),
 		Entities: []mongoAuthorizationEntity{toMongoEntity(entity)},
 	}
-	ctx, _ := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
 	_, err := repo.Client.Database(dbName).Collection(userCollection).InsertOne(ctx, mongoUser)
 	if err != nil{
 		panic(err)
@@ -123,7 +128,8 @@ func (repo *Repository) CreateForEntity(entity goauthlib.AuthorizationEntity) *g
 }
 
 func (repo *Repository) Save(model *goauthlib.User) {
-	ctx, _ := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
 	mongoUser := toMongoUser(model)
 	_, err := repo.Client.Database(dbName).Collection(userCollection).UpdateOne(ctx, bson.M{"_id": mongoUser.ID}, mongoUser, nil)
 	if err != nil {
