@@ -33,6 +33,7 @@ func (repo *Repository) CreateVerification(entity goauthlib.AuthorizationEntity,
 		DestinationType: entity.Type,
 		Created:         time.Now().Unix(),
 	}
+	yes := true
 	_, err := repo.Client.Database(dbName).Collection(verificationCollection).UpdateOne(ctx,  q, m, &options.UpdateOptions{Upsert: &yes})
 	if err != nil{
 		panic(err)
