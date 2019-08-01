@@ -1,4 +1,4 @@
-package social
+package goauthlib
 
 // ProviderResult is a result of authentication via social provider
 type ProviderResult struct {

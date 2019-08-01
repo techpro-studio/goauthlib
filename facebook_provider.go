@@ -1,11 +1,10 @@
-package social
+package goauthlib
 
 import (
 	"context"
 	"encoding/json"
 	"fmt"
 	"github.com/techpro-studio/gohttplib"
-	"github.com/techpro-studio/goauthlib"
 	"github.com/techpro-studio/gohttplib/utils"
 	"io/ioutil"
 	"net/http"
@@ -24,11 +23,11 @@ func NewFacebookProvider(UseTokenForBusinessAsID bool, Scope string) *FacebookPr
 
 func (provider *FacebookProvider) getRawData(token string, fields string, photoDimension int) (map[string]interface{}, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
 	url := fmt.Sprintf(
 		"https://graph.facebook.com/v3.0/me?fields=%s&access_token=%s", fields, token)
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
-		cancel()
 		return nil, gohttplib.HTTP400(err.Error())
 	}
 	req.WithContext(ctx)
@@ -52,7 +51,7 @@ func (provider *FacebookProvider) GetInfoByToken(token string) (*ProviderResult,
 	if err != nil {
 		return nil, err
 	}
-	result := ProviderResult{Raw: raw, Type:goauthlib.EntityTypeFacebook}
+	result := ProviderResult{Raw: raw, Type: EntityTypeFacebook}
 	result.ID = raw["id"].(string)
 	tokenForBusiness, ok := raw["token_for_business"].(string)
 	if provider.UseTokenForBusinessAsID && ok {

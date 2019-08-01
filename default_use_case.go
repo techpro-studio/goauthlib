@@ -4,9 +4,8 @@ import (
 	"errors"
 	"fmt"
 	"github.com/dgrijalva/jwt-go"
-	"github.com/techpro-studio/gohttplib"
-	"github.com/techpro-studio/goauthlib/social"
 	"github.com/techpro-studio/goauthlib/delivery"
+	"github.com/techpro-studio/gohttplib"
 	"github.com/techpro-studio/gohttplib/utils"
 	"math/rand"
 )
@@ -16,7 +15,7 @@ type Config struct {
 }
 
 type DefaultUseCase struct {
-	SocialProviders map[string]social.Provider
+	SocialProviders map[string]Provider
 	repository      Repository
 	config          Config
 	smsDelivery     delivery.DataDelivery
@@ -26,10 +25,10 @@ type DefaultUseCase struct {
 
 
 func NewDefaultUseCase(repository Repository, config Config, smsDelivery, emailDelivery delivery.DataDelivery) *DefaultUseCase {
-	return &DefaultUseCase{repository: repository, SocialProviders: map[string]social.Provider{}, config: config}
+	return &DefaultUseCase{repository: repository, SocialProviders: map[string]Provider{}, config: config}
 }
 
-func (useCase *DefaultUseCase) RegisterSocialProvider(key string, provider social.Provider) {
+func (useCase *DefaultUseCase) RegisterSocialProvider(key string, provider Provider) {
 	useCase.SocialProviders[key] = provider
 }
 
@@ -47,7 +46,7 @@ func (useCase *DefaultUseCase) AuthenticateViaSocialProvider(token, _type string
 	return useCase.generateResponseFor(usr, result.Raw)
 }
 
-func (useCase *DefaultUseCase) appendNewEntitiesFromSocialToUserIfNeed(usr *User, result *social.ProviderResult){
+func (useCase *DefaultUseCase) appendNewEntitiesFromSocialToUserIfNeed(usr *User, result *ProviderResult){
 	newEntities := useCase.findNewEntitiesInSocialProviderResult(usr.Entities, result)
 	if len(newEntities) > 0 {
 		usr.Entities = append(usr.Entities, newEntities...)
@@ -55,7 +54,7 @@ func (useCase *DefaultUseCase) appendNewEntitiesFromSocialToUserIfNeed(usr *User
 	}
 }
 
-func (useCase *DefaultUseCase) getInfoFromProvider(_type string, token string) (*social.ProviderResult, error) {
+func (useCase *DefaultUseCase) getInfoFromProvider(_type string, token string) (*ProviderResult, error) {
 	provider := useCase.SocialProviders[_type]
 	if provider == nil {
 		return nil, gohttplib.HTTP400(fmt.Sprintf("%s is not registered", _type))
@@ -190,7 +189,7 @@ func (useCase *DefaultUseCase) VerifyAuthenticationEntity(user *User, entity Aut
 	return user, nil
 }
 
-func  (useCase *DefaultUseCase) findNewEntitiesInSocialProviderResult(old []AuthorizationEntity, result *social.ProviderResult)[]AuthorizationEntity {
+func  (useCase *DefaultUseCase) findNewEntitiesInSocialProviderResult(old []AuthorizationEntity, result *ProviderResult)[]AuthorizationEntity {
 	socialEntity := AuthorizationEntity{Type: result.Type, Value:result.ID}
 	socialMap := map[string]*AuthorizationEntity{
 		socialEntity.GetHash(): &socialEntity,

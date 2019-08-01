@@ -3,7 +3,6 @@ package mongo
 import (
 	"context"
 	"github.com/techpro-studio/goauthlib"
-	"github.com/techpro-studio/goauthlib/social"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
@@ -41,7 +40,7 @@ func (repo *Repository) CreateVerification(entity goauthlib.AuthorizationEntity,
 	return toDomainVerification(&m)
 }
 
-func (repo *Repository) GetForSocial(result *social.ProviderResult) *goauthlib.User {
+func (repo *Repository) GetForSocial(result *goauthlib.ProviderResult) *goauthlib.User {
 	or := []bson.M{{"entities.$.type": result.Type, "entities.$.value": result.ID}}
 	if result.Email != "" {
 		or = append(or, bson.M{"entities.$.type": goauthlib.EntityTypeEmail, "entities.$.value": result.Email})
@@ -52,7 +51,7 @@ func (repo *Repository) GetForSocial(result *social.ProviderResult) *goauthlib.U
 	return repo.getOneUser(bson.M{"$or": or})
 }
 
-func (repo *Repository) CreateForSocial(result *social.ProviderResult) *goauthlib.User {
+func (repo *Repository) CreateForSocial(result *goauthlib.ProviderResult) *goauthlib.User {
 	entities := []mongoAuthorizationEntity{{Type: result.Type, Value:result.ID}}
 	if result.Email != "" {
 		entities = append(entities, mongoAuthorizationEntity{
