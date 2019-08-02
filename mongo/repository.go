@@ -14,6 +14,19 @@ type Repository struct {
 	Client *mongo.Client
 }
 
+func (repo *Repository) DeleteVerification(id string) {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	objId, err := primitive.ObjectIDFromHex(id)
+	if err != nil{
+		panic(err)
+	}
+	_, err = repo.Client.Database(dbName).Collection(verificationCollection).DeleteOne(ctx, bson.M{"_id":objId})
+	if err != nil{
+		panic(err)
+	}
+}
+
 func NewRepository(client *mongo.Client) *Repository {
 	return &Repository{Client: client}
 }

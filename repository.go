@@ -8,5 +8,6 @@ type Repository interface {
 	Save(model *User)
 	GetVerificationForEntity(entity AuthorizationEntity) *Verification
 	CreateVerification(entity AuthorizationEntity, verificationCode string)
+	DeleteVerification(id string)
 	GetById(id string) *User
 }

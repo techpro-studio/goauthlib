@@ -107,7 +107,7 @@ func (useCase *DefaultUseCase) SendCodeWithUser(user User, entity AuthorizationE
 }
 
 func (useCase *DefaultUseCase) AuthenticateWithCode(entity AuthorizationEntity, code string) (*Response, error) {
-	err := useCase.getVerificationAndCompare(entity, code)
+	verification, err := useCase.getVerificationAndCompare(entity, code)
 	if err != nil {
 		return nil, err
 	}
@@ -115,18 +115,19 @@ func (useCase *DefaultUseCase) AuthenticateWithCode(entity AuthorizationEntity, 
 	if usr == nil {
 		usr = useCase.repository.CreateForEntity(entity)
 	}
+	useCase.repository.DeleteVerification(verification.ID)
 	return useCase.generateResponseFor(usr, nil)
 }
 
-func (useCase *DefaultUseCase) getVerificationAndCompare(entity AuthorizationEntity, code string) error {
+func (useCase *DefaultUseCase) getVerificationAndCompare(entity AuthorizationEntity, code string) (*Verification, error) {
 	verification := useCase.repository.GetVerificationForEntity(entity)
 	if verification == nil {
-		return gohttplib.HTTP404(entity.Value)
+		return nil, gohttplib.HTTP404(entity.Value)
 	}
 	if verification.Code != code {
-		return invalidCode
+		return nil, invalidCode
 	}
-	return nil
+	return verification, nil
 }
 
 func (useCase *DefaultUseCase) foundEntityInUser(user User, entity AuthorizationEntity) int {
@@ -180,13 +181,14 @@ func (useCase *DefaultUseCase) VerifyAuthenticationEntity(user *User, entity Aut
 			return nil, entityHasAlreadyUser
 		}
 	}
-	err := useCase.getVerificationAndCompare(entity, code)
+	verification, err := useCase.getVerificationAndCompare(entity, code)
 	if err != nil {
 		return nil, err
 	}
 	usrEntities := user.Entities
 	usrEntities = append(usrEntities, entity)
 	useCase.repository.Save(user)
+	useCase.repository.DeleteVerification(verification.ID)
 	return user, nil
 }
 
