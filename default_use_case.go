@@ -187,6 +187,7 @@ func (useCase *DefaultUseCase) VerifyAuthenticationEntity(user *User, entity Aut
 	}
 	usrEntities := user.Entities
 	usrEntities = append(usrEntities, entity)
+	user.Entities = usrEntities
 	useCase.repository.Save(user)
 	useCase.repository.DeleteVerification(verification.ID)
 	return user, nil
