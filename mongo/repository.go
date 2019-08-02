@@ -55,12 +55,12 @@ func (repo *Repository) CreateVerification(entity goauthlib.AuthorizationEntity,
 }
 
 func (repo *Repository) GetForSocial(result *goauthlib.ProviderResult) *goauthlib.User {
-	or := []bson.M{{"entities.$.type": result.Type, "entities.$.value": result.ID}}
+	or := []bson.M{{"entities.type": result.Type, "entities.value": result.ID}}
 	if result.Email != "" {
-		or = append(or, bson.M{"entities.$.type": goauthlib.EntityTypeEmail, "entities.$.value": result.Email})
+		or = append(or, bson.M{"entities.type": goauthlib.EntityTypeEmail, "entities.value": result.Email})
 	}
 	if result.Phone != "" {
-		or = append(or, bson.M{"entities.$.type": goauthlib.EntityTypePhone, "entities.$.value": result.Phone})
+		or = append(or, bson.M{"entities.type": goauthlib.EntityTypePhone, "entities.value": result.Phone})
 	}
 	return repo.getOneUser(bson.M{"$or": or})
 }
@@ -123,7 +123,7 @@ func (repo *Repository) getOneVerification(query bson.M) *goauthlib.Verification
 }
 
 func (repo *Repository) GetForEntity(entity goauthlib.AuthorizationEntity) *goauthlib.User {
-	return repo.getOneUser(bson.M{"entities.$.type": entity.Type, "entities.$.value": entity.Value})
+	return repo.getOneUser(bson.M{"entities.type": entity.Type, "entities.value": entity.Value})
 }
 
 func (repo *Repository) CreateForEntity(entity goauthlib.AuthorizationEntity) *goauthlib.User{
