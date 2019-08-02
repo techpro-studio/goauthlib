@@ -18,19 +18,19 @@ func NewConfig(sharedSecret string) *Config {
 	return &Config{sharedSecret: sharedSecret}
 }
 
-
 type DefaultUseCase struct {
 	SocialProviders map[string]Provider
+	Deliveries      map[string]delivery.DataDelivery
 	repository      Repository
 	config          Config
-	smsDelivery     delivery.DataDelivery
-	emailDelivery   delivery.DataDelivery
 }
 
+func (useCase *DefaultUseCase) RegisterDataDelivery(key string, delivery delivery.DataDelivery) {
+	useCase.Deliveries[key] = delivery
+}
 
-
-func NewDefaultUseCase(repository Repository, config Config, smsDelivery, emailDelivery delivery.DataDelivery) *DefaultUseCase {
-	return &DefaultUseCase{repository: repository, SocialProviders: map[string]Provider{}, config: config}
+func NewDefaultUseCase(repository Repository, config Config) *DefaultUseCase {
+	return &DefaultUseCase{repository: repository, SocialProviders: map[string]Provider{}, Deliveries: map[string]delivery.DataDelivery{}, config: config}
 }
 
 func (useCase *DefaultUseCase) RegisterSocialProvider(key string, provider Provider) {
@@ -51,7 +51,7 @@ func (useCase *DefaultUseCase) AuthenticateViaSocialProvider(token, _type string
 	return useCase.generateResponseFor(usr, result.Raw)
 }
 
-func (useCase *DefaultUseCase) appendNewEntitiesFromSocialToUserIfNeed(usr *User, result *ProviderResult){
+func (useCase *DefaultUseCase) appendNewEntitiesFromSocialToUserIfNeed(usr *User, result *ProviderResult) {
 	newEntities := useCase.findNewEntitiesInSocialProviderResult(usr.Entities, result)
 	if len(newEntities) > 0 {
 		usr.Entities = append(usr.Entities, newEntities...)
@@ -71,28 +71,26 @@ func (useCase *DefaultUseCase) getInfoFromProvider(_type string, token string) (
 	return result, nil
 }
 
-func (useCase *DefaultUseCase)generateResponseFor(usr *User, userInfo map[string]interface{})(*Response, error) {
+func (useCase *DefaultUseCase) generateResponseFor(usr *User, userInfo map[string]interface{}) (*Response, error) {
 	jsonWebToken, err := useCase.generateTokenFromModel(*usr)
 	if err != nil {
 		return nil, gohttplib.HTTP400(err.Error())
 	}
 	return &Response{
-		Token: jsonWebToken,
+		Token:    jsonWebToken,
 		User:     *usr,
 		UserInfo: userInfo,
 	}, nil
 }
 
 func (useCase *DefaultUseCase) SendCode(entity AuthorizationEntity) error {
-	code := fmt.Sprintf("%d", rand.Intn(89999) + 10000)
-	var dataDelivery delivery.DataDelivery
-	if entity.Type == EntityTypeEmail {
-		dataDelivery = useCase.emailDelivery
-	}else  {
-		dataDelivery = useCase.smsDelivery
+	code := fmt.Sprintf("%d", rand.Intn(89999)+10000)
+	dataDelivery := useCase.Deliveries[entity.Type]
+	if dataDelivery == nil{
+		return gohttplib.HTTP400("type not found")
 	}
 	useCase.repository.CreateVerification(entity, code)
-	err :=  dataDelivery.Send(entity.Value, fmt.Sprintf("Verification code %s", code))
+	err := dataDelivery.Send(entity.Value, fmt.Sprintf("Verification code %s", code))
 	return err
 }
 
@@ -101,17 +99,16 @@ func (useCase *DefaultUseCase) SendCodeWithUser(user User, entity AuthorizationE
 	if usrAttached != nil {
 		if usrAttached.ID == user.ID {
 			return entityAlreadyExists
-		}else {
+		} else {
 			return entityHasAlreadyUser
 		}
 	}
 	return useCase.SendCode(entity)
 }
 
-
 func (useCase *DefaultUseCase) AuthenticateWithCode(entity AuthorizationEntity, code string) (*Response, error) {
 	err := useCase.getVerificationAndCompare(entity, code)
-	if err != nil{
+	if err != nil {
 		return nil, err
 	}
 	usr := useCase.repository.GetForEntity(entity)
@@ -121,10 +118,10 @@ func (useCase *DefaultUseCase) AuthenticateWithCode(entity AuthorizationEntity, 
 	return useCase.generateResponseFor(usr, nil)
 }
 
-func (useCase *DefaultUseCase) getVerificationAndCompare(entity AuthorizationEntity, code string)  error {
+func (useCase *DefaultUseCase) getVerificationAndCompare(entity AuthorizationEntity, code string) error {
 	verification := useCase.repository.GetVerificationForEntity(entity)
 	if verification == nil {
-		return  gohttplib.HTTP404(entity.Value)
+		return gohttplib.HTTP404(entity.Value)
 	}
 	if verification.Code != code {
 		return invalidCode
@@ -132,9 +129,9 @@ func (useCase *DefaultUseCase) getVerificationAndCompare(entity AuthorizationEnt
 	return nil
 }
 
-func (useCase *DefaultUseCase) foundEntityInUser(user User, entity AuthorizationEntity)int {
+func (useCase *DefaultUseCase) foundEntityInUser(user User, entity AuthorizationEntity) int {
 	foundIdx := -1
-	for idx ,e := range user.Entities {
+	for idx, e := range user.Entities {
 		if e.isEqual(entity) {
 			foundIdx = idx
 		}
@@ -157,17 +154,16 @@ func (useCase *DefaultUseCase) RemoveAuthenticationEntity(user User, entity Auth
 	return nil
 }
 
-
-func (useCase *DefaultUseCase) AddSocialAuthenticationEntity(user *User, socialProvider string, token string) (*User,error) {
+func (useCase *DefaultUseCase) AddSocialAuthenticationEntity(user *User, socialProvider string, token string) (*User, error) {
 	result, err := useCase.getInfoFromProvider(socialProvider, token)
-	if err != nil{
-		return  nil, err
+	if err != nil {
+		return nil, err
 	}
 	usrAttached := useCase.repository.GetForSocial(result)
 	if usrAttached != nil {
 		if usrAttached.ID == user.ID {
 			return nil, entityAlreadyExists
-		}else {
+		} else {
 			return nil, entityHasAlreadyUser
 		}
 	}
@@ -175,17 +171,17 @@ func (useCase *DefaultUseCase) AddSocialAuthenticationEntity(user *User, socialP
 	return user, nil
 }
 
-func (useCase *DefaultUseCase) VerifyAuthenticationEntity(user *User, entity AuthorizationEntity, code string) (*User,error) {
+func (useCase *DefaultUseCase) VerifyAuthenticationEntity(user *User, entity AuthorizationEntity, code string) (*User, error) {
 	usrAttached := useCase.repository.GetForEntity(entity)
 	if usrAttached != nil {
 		if usrAttached.ID == user.ID {
 			return nil, entityAlreadyExists
-		}else {
+		} else {
 			return nil, entityHasAlreadyUser
 		}
 	}
 	err := useCase.getVerificationAndCompare(entity, code)
-	if err != nil{
+	if err != nil {
 		return nil, err
 	}
 	usrEntities := user.Entities
@@ -194,8 +190,8 @@ func (useCase *DefaultUseCase) VerifyAuthenticationEntity(user *User, entity Aut
 	return user, nil
 }
 
-func  (useCase *DefaultUseCase) findNewEntitiesInSocialProviderResult(old []AuthorizationEntity, result *ProviderResult)[]AuthorizationEntity {
-	socialEntity := AuthorizationEntity{Type: result.Type, Value:result.ID}
+func (useCase *DefaultUseCase) findNewEntitiesInSocialProviderResult(old []AuthorizationEntity, result *ProviderResult) []AuthorizationEntity {
+	socialEntity := AuthorizationEntity{Type: result.Type, Value: result.ID}
 	socialMap := map[string]*AuthorizationEntity{
 		socialEntity.GetHash(): &socialEntity,
 	}
@@ -221,7 +217,7 @@ func  (useCase *DefaultUseCase) findNewEntitiesInSocialProviderResult(old []Auth
 		}
 	}
 
-	for _, value := range socialMap{
+	for _, value := range socialMap {
 		newEntities = append(newEntities, *value)
 	}
 	return newEntities
