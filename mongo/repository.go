@@ -97,12 +97,12 @@ func (repo *Repository) getOneUser(query bson.M) *goauthlib.User {
 	defer cancel()
 	res := repo.Client.Database(dbName).Collection(userCollection).FindOne(ctx,  query)
 	if res.Err() != nil {
-		panic(res.Err().Error())
+		return nil
 	}
 	var mongoUser mongoUser
 	err := res.Decode(&mongoUser)
 	if err != nil {
-		panic(err)
+		return nil
 	}
 	return toDomainUser(&mongoUser)
 }
