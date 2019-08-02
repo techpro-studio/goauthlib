@@ -28,7 +28,7 @@ func MakeSocialProviderVMap()validator.VMap {
 }
 
 func GetSocialProviderInfo(body map[string]interface{}) (string, string, error){
-	validated, err := validator.ValidateBody(body, MakeAuthorizationEntityVMap())
+	validated, err := validator.ValidateBody(body, MakeSocialProviderVMap())
 	if err != nil {
 		return "", "", err
 	}
@@ -36,7 +36,7 @@ func GetSocialProviderInfo(body map[string]interface{}) (string, string, error){
 }
 
 func GetCode(body map[string]interface{}) (string, error){
-	validated, err := validator.ValidateBody(body, MakeAuthorizationEntityVMap())
+	validated, err := validator.ValidateBody(body, MakeCodeVMap())
 	if err != nil {
 		return "", err
 	}
