@@ -112,12 +112,12 @@ func (repo *Repository) getOneVerification(query bson.M) *goauthlib.Verification
 	defer cancel()
 	res := repo.Client.Database(dbName).Collection(verificationCollection).FindOne(ctx,  query)
 	if res.Err() != nil {
-		panic(res.Err().Error())
+		return nil
 	}
 	var mongoVerification mongoVerification
 	err := res.Decode(&mongoVerification)
 	if err != nil {
-		panic(err)
+		return nil
 	}
 	return toDomainVerification(&mongoVerification)
 }
