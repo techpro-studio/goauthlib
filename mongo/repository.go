@@ -22,23 +22,23 @@ func (repo *Repository) GetVerificationForEntity(entity goauthlib.AuthorizationE
 	return repo.getOneVerification(bson.M{"destination": entity.Value, "destination_type": entity.Type})
 }
 
-func (repo *Repository) CreateVerification(entity goauthlib.AuthorizationEntity, verificationCode string) *goauthlib.Verification {
+func (repo *Repository) CreateVerification(entity goauthlib.AuthorizationEntity, verificationCode string) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 	q := bson.M{"destination": entity.Value, "destination_type": entity.Type}
-	m := mongoVerification{
-		ID:              primitive.NewObjectID(),
-		Code:            verificationCode,
-		Destination:     entity.Value,
-		DestinationType: entity.Type,
-		Created:         time.Now().Unix(),
+	u := bson.M{
+		"$set": bson.M{
+			"destination": entity.Value,
+			"destination_type": entity.Type,
+			"timestamp": time.Now().Unix(),
+			"code": verificationCode,
+		},
 	}
 	yes := true
-	_, err := repo.Client.Database(dbName).Collection(verificationCollection).UpdateOne(ctx,  q, m, &options.UpdateOptions{Upsert: &yes})
+	_, err := repo.Client.Database(dbName).Collection(verificationCollection).UpdateOne(ctx,  q, u, &options.UpdateOptions{Upsert: &yes})
 	if err != nil{
 		panic(err)
 	}
-	return toDomainVerification(&m)
 }
 
 func (repo *Repository) GetForSocial(result *goauthlib.ProviderResult) *goauthlib.User {
@@ -131,7 +131,10 @@ func (repo *Repository) Save(model *goauthlib.User) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 	mongoUser := toMongoUser(model)
-	_, err := repo.Client.Database(dbName).Collection(userCollection).UpdateOne(ctx, bson.M{"_id": mongoUser.ID}, mongoUser, nil)
+	_, err := repo.Client.
+		Database(dbName).
+		Collection(userCollection).
+		UpdateOne(ctx, bson.M{"_id": mongoUser.ID}, bson.M{"$set": bson.M{"entities": mongoUser.Entities}}, nil)
 	if err != nil {
 		panic(err)
 	}

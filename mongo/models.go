@@ -66,7 +66,7 @@ type mongoVerification struct {
 	Code            string             `bson:"code"`
 	Destination     string             `bson:"destination"`
 	DestinationType string             `bson:"destination_type"`
-	Created         int64              `json:"created"`
+	Timestamp         int64              `json:"timestamp"`
 }
 
 func toMongoVerification(v *auth.Verification) *mongoVerification {
@@ -79,7 +79,7 @@ func toMongoVerification(v *auth.Verification) *mongoVerification {
 		Code:            v.Code,
 		Destination:     v.Destination,
 		DestinationType: v.DestinationType,
-		Created:         v.Created,
+		Timestamp:         v.Timestamp,
 	}
 }
 

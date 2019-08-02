@@ -41,9 +41,9 @@ func (e AuthorizationEntity) GetHash()string {
 }
 
 type Verification struct{
-	ID string `bson:"_id"`
-	Code string `bson:"code"`
-	Destination string `bson:"destination"`
-	DestinationType string `bson:"destination_type"`
-	Created int64 `json:"created"`
+	ID string
+	Code string
+	Destination string
+	DestinationType string
+	Timestamp int64
 }

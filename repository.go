@@ -7,6 +7,6 @@ type Repository interface {
 	CreateForSocial(result *ProviderResult) *User
 	Save(model *User)
 	GetVerificationForEntity(entity AuthorizationEntity) *Verification
-	CreateVerification(entity AuthorizationEntity, verificationCode string)*Verification
+	CreateVerification(entity AuthorizationEntity, verificationCode string)
 	GetById(id string) *User
 }
