@@ -94,7 +94,7 @@
   version = "v1.3.0"
 
 [[projects]]
-  digest = "1:1531a0704f0b6e4b72ab8906cf9f52967772f432ad1e27a35495ac74df9dcb3c"
+  digest = "1:964840c761e14e93e9a8d5474955aa0a088f0007bfc27672055ef6dc769301c0"
   name = "github.com/techpro-studio/gohttplib"
   packages = [
     ".",
@@ -102,7 +102,7 @@
     "validator",
   ]
   pruneopts = "UT"
-  revision = "f78547bb4db9c21c5ef537cd1dd883e1ef62d997"
+  revision = "50c2c87ccaed96f3366e5c4e53ff8bd68dce2c56"
   version = "1.0.0"
 
 [[projects]]

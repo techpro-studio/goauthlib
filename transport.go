@@ -22,7 +22,7 @@ func (t *Transport) withBody(w http.ResponseWriter, r *http.Request, handler fun
 		return
 	}
 	resp, err := handler(body)
-	gohttplib.WriteJsonOrError(w, resp,  200, err)
+	gohttplib.WriteJsonOrError(w, resp,  200, gohttplib.SafeConvertToServerError(err))
 }
 
 func (t *Transport) withAuthorizationEntity(w http.ResponseWriter, r *http.Request, handler func(entity AuthorizationEntity)(interface{}, error)){
