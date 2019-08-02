@@ -89,6 +89,6 @@ func toDomainVerification(m *mongoVerification) *auth.Verification {
 		Code:            m.Code,
 		Destination:     m.Destination,
 		DestinationType: m.DestinationType,
-		Created:         m.Created,
+		Timestamp:         m.Timestamp,
 	}
 }
