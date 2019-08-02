@@ -141,12 +141,12 @@ func (useCase *DefaultUseCase) foundEntityInUser(user User, entity Authorization
 }
 
 func (useCase *DefaultUseCase) RemoveAuthenticationEntity(user User, entity AuthorizationEntity) error {
-	if len(user.Entities) == 1 {
-		return cantDeleteLastEntity
-	}
 	foundIdx := useCase.foundEntityInUser(user, entity)
 	if foundIdx == -1 {
 		return gohttplib.HTTP404(entity.Value)
+	}
+	if len(user.Entities) == 1 {
+		return cantDeleteLastEntity
 	}
 	usrEntities := user.Entities
 	usrEntities = append(usrEntities[:foundIdx], usrEntities[foundIdx+1:]...)
