@@ -37,8 +37,8 @@ func (useCase *DefaultUseCase) RegisterSocialProvider(key string, provider Provi
 	useCase.SocialProviders[key] = provider
 }
 
-func (useCase *DefaultUseCase) AuthenticateViaSocialProvider(token, _type string) (*Response, error) {
-	result, err := useCase.getInfoFromProvider(_type, token)
+func (useCase *DefaultUseCase) AuthenticateViaSocialProvider(providerType, token string) (*Response, error) {
+	result, err := useCase.getInfoFromProvider(providerType, token)
 	if err != nil {
 		return nil, err
 	}
