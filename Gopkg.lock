@@ -94,6 +94,14 @@
   version = "v1.3.0"
 
 [[projects]]
+  branch = "master"
+  digest = "1:be8502675432c363ee6bbcf7841dd569d66c46872f587501d123117fa6b3398b"
+  name = "github.com/techpro-studio/godelivery"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "c43687032bdb0451c9383a6c4b97618289265e7c"
+
+[[projects]]
   branch = "develop"
   digest = "1:d221ed070dbd9cf4603805f575f65e6350a1bb3917ee9dafd7f4c5b1ff353cd9"
   name = "github.com/techpro-studio/gohttplib"
@@ -212,7 +220,7 @@
   analyzer-version = 1
   input-imports = [
     "github.com/dgrijalva/jwt-go",
-    "github.com/mailgun/mailgun-go",
+    "github.com/techpro-studio/godelivery",
     "github.com/techpro-studio/gohttplib",
     "github.com/techpro-studio/gohttplib/utils",
     "github.com/techpro-studio/gohttplib/validator",

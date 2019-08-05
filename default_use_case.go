@@ -4,7 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/dgrijalva/jwt-go"
-	"github.com/techpro-studio/goauthlib/delivery"
+	delivery "github.com/techpro-studio/godelivery"
 	"github.com/techpro-studio/gohttplib"
 	"github.com/techpro-studio/gohttplib/utils"
 	"math/rand"
