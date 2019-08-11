@@ -1,6 +1,6 @@
 package goauthlib
 
-import "github.com/techpro-studio/goauthlib/delivery"
+import "github.com/techpro-studio/godelivery"
 
 //UseCase is an abstraction over auth business logic
 type UseCase interface {
