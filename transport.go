@@ -18,7 +18,7 @@ func NewTransport(useCase UseCase, defaultMiddleWare gohttplib.Middleware) *Tran
 func (t *Transport) withBody(w http.ResponseWriter, r *http.Request, handler func(body map[string]interface{})(interface{}, error)){
 	body, err := gohttplib.GetBody(r)
 	if err != nil{
-		err.(gohttplib.ServerError).Write(w)
+		err.(*gohttplib.ServerError).Write(w)
 		return
 	}
 	resp, err := handler(body)
