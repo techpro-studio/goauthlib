@@ -57,6 +57,9 @@ func (t *Transport) withAuthorizationEntityAndCode(w http.ResponseWriter, r *htt
 }
 
 
+func (t *Transport)CurrentUserHandler(w http.ResponseWriter, r *http.Request){
+	gohttplib.WriteJson(w, GetUserFromRequestWithPanic(r), 200)
+}
 
 func (t *Transport) AuthenticateViaSocialProviderHandler(w http.ResponseWriter, r *http.Request) {
 	t.withSocial(w, r, func(providerType string, token string) (i interface{}, e error) {
