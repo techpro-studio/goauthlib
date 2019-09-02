@@ -8,11 +8,10 @@ import (
 
 type Transport struct {
 	useCase           UseCase
-	defaultMiddleWare gohttplib.Middleware
 }
 
-func NewTransport(useCase UseCase, defaultMiddleWare gohttplib.Middleware) *Transport {
-	return &Transport{useCase: useCase, defaultMiddleWare: defaultMiddleWare}
+func NewTransport(useCase UseCase) *Transport {
+	return &Transport{useCase: useCase}
 }
 
 func (t *Transport) withBody(w http.ResponseWriter, r *http.Request, handler func(body map[string]interface{})(interface{}, error)){
