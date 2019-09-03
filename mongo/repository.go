@@ -14,9 +14,7 @@ type Repository struct {
 	Client *mongo.Client
 }
 
-func (repo *Repository) DeleteVerification(id string) {
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
+func (repo *Repository) DeleteVerification(ctx context.Context, id string) {
 	objId, err := primitive.ObjectIDFromHex(id)
 	if err != nil{
 		panic(err)
@@ -31,13 +29,11 @@ func NewRepository(client *mongo.Client) *Repository {
 	return &Repository{Client: client}
 }
 
-func (repo *Repository) GetVerificationForEntity(entity goauthlib.AuthorizationEntity) *goauthlib.Verification {
-	return repo.getOneVerification(bson.M{"destination": entity.Value, "destination_type": entity.Type})
+func (repo *Repository) GetVerificationForEntity(ctx context.Context,entity goauthlib.AuthorizationEntity) *goauthlib.Verification {
+	return repo.getOneVerification(ctx, bson.M{"destination": entity.Value, "destination_type": entity.Type})
 }
 
-func (repo *Repository) CreateVerification(entity goauthlib.AuthorizationEntity, verificationCode string) {
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
+func (repo *Repository) CreateVerification(ctx context.Context, entity goauthlib.AuthorizationEntity, verificationCode string) {
 	q := bson.M{"destination": entity.Value, "destination_type": entity.Type}
 	u := bson.M{
 		"$set": bson.M{
@@ -54,7 +50,7 @@ func (repo *Repository) CreateVerification(entity goauthlib.AuthorizationEntity,
 	}
 }
 
-func (repo *Repository) GetForSocial(result *goauthlib.ProviderResult) *goauthlib.User {
+func (repo *Repository) GetForSocial(ctx context.Context, result *goauthlib.ProviderResult) *goauthlib.User {
 	or := []bson.M{{"entities.type": result.Type, "entities.value": result.ID}}
 	if result.Email != "" {
 		or = append(or, bson.M{"entities.type": goauthlib.EntityTypeEmail, "entities.value": result.Email})
@@ -62,10 +58,10 @@ func (repo *Repository) GetForSocial(result *goauthlib.ProviderResult) *goauthli
 	if result.Phone != "" {
 		or = append(or, bson.M{"entities.type": goauthlib.EntityTypePhone, "entities.value": result.Phone})
 	}
-	return repo.getOneUser(bson.M{"$or": or})
+	return repo.getOneUser(ctx, bson.M{"$or": or})
 }
 
-func (repo *Repository) CreateForSocial(result *goauthlib.ProviderResult) *goauthlib.User {
+func (repo *Repository) CreateForSocial(ctx context.Context, result *goauthlib.ProviderResult) *goauthlib.User {
 	entities := []mongoAuthorizationEntity{{Type: result.Type, Value:result.ID}}
 	if result.Email != "" {
 		entities = append(entities, mongoAuthorizationEntity{
@@ -83,8 +79,6 @@ func (repo *Repository) CreateForSocial(result *goauthlib.ProviderResult) *goaut
 		ID:       primitive.NewObjectID(),
 		Entities: entities,
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
 	_, err := repo.Client.Database(dbName).Collection(userCollection).InsertOne(ctx, mongoUser)
 	if err != nil {
 		panic(err)
@@ -92,9 +86,7 @@ func (repo *Repository) CreateForSocial(result *goauthlib.ProviderResult) *goaut
 	return toDomainUser(&mongoUser)
 }
 
-func (repo *Repository) getOneUser(query bson.M) *goauthlib.User {
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
+func (repo *Repository) getOneUser(ctx context.Context, query bson.M) *goauthlib.User {
 	res := repo.Client.Database(dbName).Collection(userCollection).FindOne(ctx,  query)
 	if res.Err() != nil {
 		return nil
@@ -107,9 +99,7 @@ func (repo *Repository) getOneUser(query bson.M) *goauthlib.User {
 	return toDomainUser(&mongoUser)
 }
 
-func (repo *Repository) getOneVerification(query bson.M) *goauthlib.Verification {
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
+func (repo *Repository) getOneVerification(ctx context.Context, query bson.M) *goauthlib.Verification {
 	res := repo.Client.Database(dbName).Collection(verificationCollection).FindOne(ctx,  query)
 	if res.Err() != nil {
 		return nil
@@ -122,17 +112,15 @@ func (repo *Repository) getOneVerification(query bson.M) *goauthlib.Verification
 	return toDomainVerification(&mongoVerification)
 }
 
-func (repo *Repository) GetForEntity(entity goauthlib.AuthorizationEntity) *goauthlib.User {
-	return repo.getOneUser(bson.M{"entities.type": entity.Type, "entities.value": entity.Value})
+func (repo *Repository) GetForEntity(ctx context.Context, entity goauthlib.AuthorizationEntity) *goauthlib.User {
+	return repo.getOneUser(ctx, bson.M{"entities.type": entity.Type, "entities.value": entity.Value})
 }
 
-func (repo *Repository) CreateForEntity(entity goauthlib.AuthorizationEntity) *goauthlib.User{
+func (repo *Repository) CreateForEntity(ctx context.Context, entity goauthlib.AuthorizationEntity) *goauthlib.User{
 	mongoUser := mongoUser{
 		ID:       primitive.NewObjectID(),
 		Entities: []mongoAuthorizationEntity{toMongoEntity(entity)},
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
 	_, err := repo.Client.Database(dbName).Collection(userCollection).InsertOne(ctx, mongoUser)
 	if err != nil{
 		panic(err)
@@ -140,9 +128,7 @@ func (repo *Repository) CreateForEntity(entity goauthlib.AuthorizationEntity) *g
 	return toDomainUser(&mongoUser)
 }
 
-func (repo *Repository) Save(model *goauthlib.User) {
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
+func (repo *Repository) Save(ctx context.Context, model *goauthlib.User) {
 	mongoUser := toMongoUser(model)
 	_, err := repo.Client.
 		Database(dbName).
@@ -153,10 +139,10 @@ func (repo *Repository) Save(model *goauthlib.User) {
 	}
 }
 
-func (repo *Repository) GetById(id string) *goauthlib.User {
+func (repo *Repository) GetById(ctx context.Context, id string) *goauthlib.User {
 	objectID, err := primitive.ObjectIDFromHex(id)
 	if err != nil {
 		panic(err)
 	}
-	return repo.getOneUser(bson.M{"_id": objectID})
+	return repo.getOneUser(ctx, bson.M{"_id": objectID})
 }

@@ -17,7 +17,7 @@ func UserMiddlewareFactory(useCase UseCase) gohttplib.Middleware {
 				gohttplib.HTTP401().Write(w)
 				return
 			}
-			user := useCase.GetValidModelFromToken(tokenStr)
+			user := useCase.GetValidModelFromToken(req.Context(), tokenStr)
 			if user ==  nil{
 				gohttplib.HTTP401().Write(w)
 				return

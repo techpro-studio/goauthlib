@@ -1,6 +1,7 @@
 package goauthlib
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"github.com/dgrijalva/jwt-go"
@@ -37,25 +38,25 @@ func (useCase *DefaultUseCase) RegisterSocialProvider(key string, provider Provi
 	useCase.SocialProviders[key] = provider
 }
 
-func (useCase *DefaultUseCase) AuthenticateViaSocialProvider(providerType, token string) (*Response, error) {
+func (useCase *DefaultUseCase) AuthenticateViaSocialProvider(ctx context.Context, providerType, token string) (*Response, error) {
 	result, err := useCase.getInfoFromProvider(providerType, token)
 	if err != nil {
 		return nil, err
 	}
-	usr := useCase.repository.GetForSocial(result)
+	usr := useCase.repository.GetForSocial(ctx, result)
 	if usr == nil {
-		usr = useCase.repository.CreateForSocial(result)
+		usr = useCase.repository.CreateForSocial(ctx, result)
 	} else {
-		useCase.appendNewEntitiesFromSocialToUserIfNeed(usr, result)
+		useCase.appendNewEntitiesFromSocialToUserIfNeed(ctx, usr, result)
 	}
 	return useCase.generateResponseFor(usr, result.Raw)
 }
 
-func (useCase *DefaultUseCase) appendNewEntitiesFromSocialToUserIfNeed(usr *User, result *ProviderResult) {
+func (useCase *DefaultUseCase) appendNewEntitiesFromSocialToUserIfNeed(ctx context.Context, usr *User, result *ProviderResult) {
 	newEntities := useCase.findNewEntitiesInSocialProviderResult(usr.Entities, result)
 	if len(newEntities) > 0 {
 		usr.Entities = append(usr.Entities, newEntities...)
-		useCase.repository.Save(usr)
+		useCase.repository.Save(ctx, usr)
 	}
 }
 
@@ -83,19 +84,19 @@ func (useCase *DefaultUseCase) generateResponseFor(usr *User, userInfo map[strin
 	}, nil
 }
 
-func (useCase *DefaultUseCase) SendCode(entity AuthorizationEntity) error {
+func (useCase *DefaultUseCase) SendCode(ctx context.Context, entity AuthorizationEntity) error {
 	code := fmt.Sprintf("%d", rand.Intn(89999)+10000)
 	dataDelivery := useCase.Deliveries[entity.Type]
 	if dataDelivery == nil{
 		return gohttplib.HTTP400("type not found")
 	}
-	useCase.repository.CreateVerification(entity, code)
+	useCase.repository.CreateVerification(ctx, entity, code)
 	err := dataDelivery.Send(entity.Value, fmt.Sprintf("Verification code %s", code))
 	return err
 }
 
-func (useCase *DefaultUseCase) SendCodeWithUser(user User, entity AuthorizationEntity) error {
-	usrAttached := useCase.repository.GetForEntity(entity)
+func (useCase *DefaultUseCase) SendCodeWithUser(ctx context.Context, user User, entity AuthorizationEntity) error {
+	usrAttached := useCase.repository.GetForEntity(ctx, entity)
 	if usrAttached != nil {
 		if usrAttached.ID == user.ID {
 			return entityAlreadyExists
@@ -103,24 +104,24 @@ func (useCase *DefaultUseCase) SendCodeWithUser(user User, entity AuthorizationE
 			return entityHasAlreadyUser
 		}
 	}
-	return useCase.SendCode(entity)
+	return useCase.SendCode(ctx, entity)
 }
 
-func (useCase *DefaultUseCase) AuthenticateWithCode(entity AuthorizationEntity, code string) (*Response, error) {
-	verification, err := useCase.getVerificationAndCompare(entity, code)
+func (useCase *DefaultUseCase) AuthenticateWithCode(ctx context.Context, entity AuthorizationEntity, code string) (*Response, error) {
+	verification, err := useCase.getVerificationAndCompare(ctx, entity, code)
 	if err != nil {
 		return nil, err
 	}
-	usr := useCase.repository.GetForEntity(entity)
+	usr := useCase.repository.GetForEntity(ctx, entity)
 	if usr == nil {
-		usr = useCase.repository.CreateForEntity(entity)
+		usr = useCase.repository.CreateForEntity(ctx, entity)
 	}
-	useCase.repository.DeleteVerification(verification.ID)
+	useCase.repository.DeleteVerification(ctx, verification.ID)
 	return useCase.generateResponseFor(usr, nil)
 }
 
-func (useCase *DefaultUseCase) getVerificationAndCompare(entity AuthorizationEntity, code string) (*Verification, error) {
-	verification := useCase.repository.GetVerificationForEntity(entity)
+func (useCase *DefaultUseCase) getVerificationAndCompare(ctx context.Context, entity AuthorizationEntity, code string) (*Verification, error) {
+	verification := useCase.repository.GetVerificationForEntity(ctx, entity)
 	if verification == nil {
 		return nil, gohttplib.HTTP404(entity.Value)
 	}
@@ -140,7 +141,7 @@ func (useCase *DefaultUseCase) foundEntityInUser(user User, entity Authorization
 	return foundIdx
 }
 
-func (useCase *DefaultUseCase) RemoveAuthenticationEntity(user User, entity AuthorizationEntity) error {
+func (useCase *DefaultUseCase) RemoveAuthenticationEntity(ctx context.Context, user User, entity AuthorizationEntity) error {
 	foundIdx := useCase.foundEntityInUser(user, entity)
 	if foundIdx == -1 {
 		return gohttplib.HTTP404(entity.Value)
@@ -151,16 +152,16 @@ func (useCase *DefaultUseCase) RemoveAuthenticationEntity(user User, entity Auth
 	usrEntities := user.Entities
 	usrEntities = append(usrEntities[:foundIdx], usrEntities[foundIdx+1:]...)
 	user.Entities = usrEntities
-	useCase.repository.Save(&user)
+	useCase.repository.Save(ctx, &user)
 	return nil
 }
 
-func (useCase *DefaultUseCase) AddSocialAuthenticationEntity(user *User, socialProvider string, token string) (*User, error) {
+func (useCase *DefaultUseCase) AddSocialAuthenticationEntity(ctx context.Context, user *User, socialProvider string, token string) (*User, error) {
 	result, err := useCase.getInfoFromProvider(socialProvider, token)
 	if err != nil {
 		return nil, err
 	}
-	usrAttached := useCase.repository.GetForSocial(result)
+	usrAttached := useCase.repository.GetForSocial(ctx, result)
 	if usrAttached != nil {
 		if usrAttached.ID == user.ID {
 			return nil, entityAlreadyExists
@@ -168,12 +169,12 @@ func (useCase *DefaultUseCase) AddSocialAuthenticationEntity(user *User, socialP
 			return nil, entityHasAlreadyUser
 		}
 	}
-	useCase.appendNewEntitiesFromSocialToUserIfNeed(user, result)
+	useCase.appendNewEntitiesFromSocialToUserIfNeed(ctx, user, result)
 	return user, nil
 }
 
-func (useCase *DefaultUseCase) VerifyAuthenticationEntity(user *User, entity AuthorizationEntity, code string) (*User, error) {
-	usrAttached := useCase.repository.GetForEntity(entity)
+func (useCase *DefaultUseCase) VerifyAuthenticationEntity(ctx context.Context, user *User, entity AuthorizationEntity, code string) (*User, error) {
+	usrAttached := useCase.repository.GetForEntity(ctx, entity)
 	if usrAttached != nil {
 		if usrAttached.ID == user.ID {
 			return nil, entityAlreadyExists
@@ -181,15 +182,15 @@ func (useCase *DefaultUseCase) VerifyAuthenticationEntity(user *User, entity Aut
 			return nil, entityHasAlreadyUser
 		}
 	}
-	verification, err := useCase.getVerificationAndCompare(entity, code)
+	verification, err := useCase.getVerificationAndCompare(ctx, entity, code)
 	if err != nil {
 		return nil, err
 	}
 	usrEntities := user.Entities
 	usrEntities = append(usrEntities, entity)
 	user.Entities = usrEntities
-	useCase.repository.Save(user)
-	useCase.repository.DeleteVerification(verification.ID)
+	useCase.repository.Save(ctx, user)
+	useCase.repository.DeleteVerification(ctx, verification.ID)
 	return user, nil
 }
 
@@ -226,12 +227,12 @@ func (useCase *DefaultUseCase) findNewEntitiesInSocialProviderResult(old []Autho
 	return newEntities
 }
 
-func (useCase *DefaultUseCase) GetValidModelFromToken(token string) *User {
+func (useCase *DefaultUseCase) GetValidModelFromToken(ctx context.Context, token string) *User {
 	userData, err := useCase.getUserDataFromToken(token)
 	if err != nil {
 		return nil
 	}
-	model := useCase.repository.GetById(userData["id"].(string))
+	model := useCase.repository.GetById(ctx, userData["id"].(string))
 	if model == nil {
 		return nil
 	}

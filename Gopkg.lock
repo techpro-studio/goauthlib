@@ -90,8 +90,8 @@
     "semver",
   ]
   pruneopts = "UT"
-  revision = "438578804ca6f31be148c27683afc419ce47c06e"
-  version = "v1.3.0"
+  revision = "0483ff7b2e24ea0a6fc49d59511d33b631851cca"
+  version = "v1.3.1"
 
 [[projects]]
   branch = "master"
@@ -103,7 +103,7 @@
 
 [[projects]]
   branch = "develop"
-  digest = "1:d221ed070dbd9cf4603805f575f65e6350a1bb3917ee9dafd7f4c5b1ff353cd9"
+  digest = "1:162f2c2e9554dd5e6e436b4fc82fd6386dadb74ae2742bfa6e986c67c42c966f"
   name = "github.com/techpro-studio/gohttplib"
   packages = [
     ".",
@@ -111,7 +111,7 @@
     "validator",
   ]
   pruneopts = "UT"
-  revision = "fc3d7674153177c25d5547e90a4501e1a454a4f0"
+  revision = "da5b9479c23b75c4a67cb45a64038ded41bb4a2f"
 
 [[projects]]
   branch = "master"
@@ -146,7 +146,7 @@
   revision = "73f8eece6fdcd902c185bf651de50f3828bed5ed"
 
 [[projects]]
-  digest = "1:721dfafdcdef689834240d27526505237b230b7dea54df28ec299ab182cfbd1f"
+  digest = "1:c540afe732e96088051488bc827eadfba64b90a0e803ea61e7ec80907887362e"
   name = "go.mongodb.org/mongo-driver"
   packages = [
     "bson",
@@ -166,23 +166,21 @@
     "x/bsonx",
     "x/bsonx/bsoncore",
     "x/mongo/driver",
+    "x/mongo/driver/address",
     "x/mongo/driver/auth",
     "x/mongo/driver/auth/internal/gssapi",
+    "x/mongo/driver/connstring",
+    "x/mongo/driver/description",
+    "x/mongo/driver/dns",
+    "x/mongo/driver/operation",
     "x/mongo/driver/session",
     "x/mongo/driver/topology",
     "x/mongo/driver/uuid",
-    "x/network/address",
-    "x/network/command",
-    "x/network/compressor",
-    "x/network/connection",
-    "x/network/connstring",
-    "x/network/description",
-    "x/network/result",
-    "x/network/wiremessage",
+    "x/mongo/driver/wiremessage",
   ]
   pruneopts = "UT"
-  revision = "0d1270edf53072da4da781b76d2e1db58831152f"
-  version = "v1.0.4"
+  revision = "d42ea7239f0db8a61e77191b9f2730a922459042"
+  version = "v1.1.0"
 
 [[projects]]
   branch = "master"
@@ -190,7 +188,7 @@
   name = "golang.org/x/crypto"
   packages = ["pbkdf2"]
   pruneopts = "UT"
-  revision = "4def268fd1a49955bfb3dda92fe3db4f924f2285"
+  revision = "9756ffdc24725223350eb3266ffb92590d28f278"
 
 [[projects]]
   branch = "master"

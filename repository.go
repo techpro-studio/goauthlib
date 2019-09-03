@@ -1,13 +1,15 @@
 package goauthlib
 
+import "context"
+
 type Repository interface {
-	GetForEntity(entity AuthorizationEntity) *User
-	CreateForEntity(entity AuthorizationEntity) *User
-	GetForSocial(result *ProviderResult) *User
-	CreateForSocial(result *ProviderResult) *User
-	Save(model *User)
-	GetVerificationForEntity(entity AuthorizationEntity) *Verification
-	CreateVerification(entity AuthorizationEntity, verificationCode string)
-	DeleteVerification(id string)
-	GetById(id string) *User
+	GetForEntity(ctx context.Context, entity AuthorizationEntity) *User
+	CreateForEntity(ctx context.Context, entity AuthorizationEntity) *User
+	GetForSocial(ctx context.Context, result *ProviderResult) *User
+	CreateForSocial(ctx context.Context, result *ProviderResult) *User
+	Save(ctx context.Context, model *User)
+	GetVerificationForEntity(ctx context.Context, entity AuthorizationEntity) *Verification
+	CreateVerification(ctx context.Context, entity AuthorizationEntity, verificationCode string)
+	DeleteVerification(ctx context.Context, id string)
+	GetById(ctx context.Context, id string) *User
 }
