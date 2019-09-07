@@ -4,7 +4,7 @@ package goauthlib
 type Response struct {
 	Token    string                 `json:"token"`
 	User     User                   `json:"user"`
-	UserInfo map[string]interface{} `json:"user_info"`
+	UserInfo map[string]interface{} `json:"user_info,omitempty"`
 }
 
 var OK = map[string]int {"ok": 1}
