@@ -10,6 +10,8 @@ import (
 	"time"
 )
 
+const notFoundDocumentError = "mongo: no documents in result"
+
 type Repository struct {
 	Client *mongo.Client
 }
@@ -88,12 +90,12 @@ func (repo *Repository) CreateForSocial(ctx context.Context, result *goauthlib.P
 
 func (repo *Repository) getOneUser(ctx context.Context, query bson.M) *goauthlib.User {
 	res := repo.Client.Database(dbName).Collection(userCollection).FindOne(ctx,  query)
-	if res.Err() != nil {
-		return nil
-	}
 	var mongoUser mongoUser
 	err := res.Decode(&mongoUser)
 	if err != nil {
+		if err.Error() != notFoundDocumentError{
+			panic(err)
+		}
 		return nil
 	}
 	return toDomainUser(&mongoUser)
