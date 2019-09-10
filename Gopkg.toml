@@ -35,7 +35,7 @@
 
 [[constraint]]
   name = "github.com/techpro-studio/gohttplib"
-  branch = "develop"
+  version= "1.0.0"
 
 [[constraint]]
   name = "go.mongodb.org/mongo-driver"
