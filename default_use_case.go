@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"github.com/dgrijalva/jwt-go"
-	delivery "github.com/techpro-studio/godelivery"
 	"github.com/techpro-studio/gohttplib"
 	"github.com/techpro-studio/gohttplib/utils"
 	"math/rand"
@@ -19,19 +18,23 @@ func NewConfig(sharedSecret string) *Config {
 	return &Config{sharedSecret: sharedSecret}
 }
 
+type OTPDelivery interface {
+	SendOTP(ctx context.Context, destination, otp string) error
+}
+
 type DefaultUseCase struct {
 	SocialProviders map[string]Provider
-	Deliveries      map[string]delivery.DataDelivery
+	Deliveries      map[string]OTPDelivery
 	repository      Repository
 	config          Config
 }
 
-func (useCase *DefaultUseCase) RegisterDataDelivery(key string, delivery delivery.DataDelivery) {
+func (useCase *DefaultUseCase) RegisterOTPDelivery(key string, delivery OTPDelivery) {
 	useCase.Deliveries[key] = delivery
 }
 
 func NewDefaultUseCase(repository Repository, config Config) *DefaultUseCase {
-	return &DefaultUseCase{repository: repository, SocialProviders: map[string]Provider{}, Deliveries: map[string]delivery.DataDelivery{}, config: config}
+	return &DefaultUseCase{repository: repository, SocialProviders: map[string]Provider{}, Deliveries: map[string]OTPDelivery{} ,config: config}
 }
 
 func (useCase *DefaultUseCase) RegisterSocialProvider(key string, provider Provider) {
@@ -91,7 +94,7 @@ func (useCase *DefaultUseCase) SendCode(ctx context.Context, entity Authorizatio
 		return gohttplib.HTTP400("type not found")
 	}
 	useCase.repository.CreateVerification(ctx, entity, code)
-	err := dataDelivery.Send(entity.Value, fmt.Sprintf("Verification code %s", code))
+	err := dataDelivery.SendOTP(ctx, entity.Value, code)
 	return err
 }
 

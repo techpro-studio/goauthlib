@@ -2,13 +2,12 @@ package goauthlib
 
 import (
 	"context"
-	"github.com/techpro-studio/godelivery"
 )
 
 //UseCase is an abstraction over auth business logic
 type UseCase interface {
 	RegisterSocialProvider(key string, provider Provider)
-	RegisterDataDelivery(key string, delivery delivery.DataDelivery)
+	RegisterOTPDelivery(key string, delivery OTPDelivery)
 	AuthenticateViaSocialProvider(ctx context.Context, providerType string, token string) (*Response, error)
 	SendCode(ctx context.Context, entity AuthorizationEntity) error
 	GetValidModelFromToken(ctx context.Context, token string)*User
