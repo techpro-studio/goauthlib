@@ -11,26 +11,26 @@ import (
 	"time"
 )
 
-// FacebookTokenProvider get info from facebook
-type FacebookTokenProvider struct {
+// FacebookProvider get info from facebook
+type FacebookProvider struct {
 	UseTokenForBusinessAsID bool
 	Scope                   string
 	oauthConfig             *oauth2.Config
 }
 
-func (provider *FacebookTokenProvider) ExchangeCode(ctx context.Context, code string) (string, error) {
-	exchange, err := provider.oauthConfig.Exchange(ctx, code)
-	if err != nil {
-		return "", err
-	}
-	return exchange.AccessToken, nil
+func (provider *FacebookProvider) ExchangeCode(ctx context.Context, code string) (string, error) {
+	return ExchangeCodeUsingProvider(provider.oauthConfig, ctx, code)
 }
 
-func NewFacebookProvider(UseTokenForBusinessAsID bool, Scope string, oauthConfig *oauth2.Config) *FacebookTokenProvider {
-	return &FacebookTokenProvider{UseTokenForBusinessAsID: UseTokenForBusinessAsID, Scope: Scope, oauthConfig: oauthConfig}
+func (provider *FacebookProvider) GetOAuthConfig() *oauth2.Config {
+	return provider.oauthConfig
 }
 
-func (provider *FacebookTokenProvider) getRawData(token string, fields string, photoDimension int) (map[string]interface{}, error) {
+func NewFacebookProvider(UseTokenForBusinessAsID bool, Scope string, oauthConfig *oauth2.Config) *FacebookProvider {
+	return &FacebookProvider{UseTokenForBusinessAsID: UseTokenForBusinessAsID, Scope: Scope, oauthConfig: oauthConfig}
+}
+
+func (provider *FacebookProvider) getRawData(token string, fields string, photoDimension int) (map[string]interface{}, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	url := fmt.Sprintf(
@@ -55,7 +55,7 @@ func (provider *FacebookTokenProvider) getRawData(token string, fields string, p
 }
 
 // GetInfoByToken implementation of SocialProvider
-func (provider *FacebookTokenProvider) GetInfoByToken(ctx context.Context, token string) (*ProviderResult, error) {
+func (provider *FacebookProvider) GetInfoByToken(ctx context.Context, token string) (*ProviderResult, error) {
 	raw, err := provider.getRawData(token, provider.Scope, 500)
 	if err != nil {
 		return nil, err

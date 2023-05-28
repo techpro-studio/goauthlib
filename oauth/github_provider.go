@@ -8,22 +8,26 @@ import (
 	"io"
 	"io/ioutil"
 	"net/http"
+	"strconv"
 )
 
 type GithubProvider struct {
-	config *oauth2.Config
+	oauthConfig *oauth2.Config
 }
 
-func (g GithubProvider) ExchangeCode(ctx context.Context, code string) (string, error) {
-	//TODO implement me
-	panic("implement me")
+func (provider *GithubProvider) GetOAuthConfig() *oauth2.Config {
+	return provider.oauthConfig
 }
 
 func NewGithubProvider(config *oauth2.Config) *GithubProvider {
-	return &GithubProvider{config: config}
+	return &GithubProvider{oauthConfig: config}
 }
 
-func (g GithubProvider) GetInfoByToken(ctx context.Context, token string) (*ProviderResult, error) {
+func (provider *GithubProvider) ExchangeCode(ctx context.Context, code string) (string, error) {
+	return ExchangeCodeUsingProvider(provider.oauthConfig, ctx, code)
+}
+
+func (provider *GithubProvider) GetInfoByToken(ctx context.Context, token string) (*ProviderResult, error) {
 	req, err := http.NewRequest("GET", "https://api.github.com/user", nil)
 	if err != nil {
 		return nil, err
@@ -60,7 +64,7 @@ func (g GithubProvider) GetInfoByToken(ctx context.Context, token string) (*Prov
 	}
 
 	return &ProviderResult{
-		ID:    user["id"].(string),
+		ID:    strconv.FormatFloat(user["id"].(float64), 'f', -1, 64),
 		Type:  EntityTypeOAuthGithub,
 		Email: email,
 		Phone: "",

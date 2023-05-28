@@ -33,6 +33,7 @@ type SocialProviderPayload struct {
 	Provider    string
 	PayloadType string
 	Payload     string
+	Remaining   map[string]interface{}
 }
 
 func GetSocialProviderPayloadInfo(body map[string]interface{}) (*SocialProviderPayload, error) {
@@ -40,10 +41,17 @@ func GetSocialProviderPayloadInfo(body map[string]interface{}) (*SocialProviderP
 	if err != nil {
 		return nil, err
 	}
+	remaining := map[string]interface{}{}
+	for key, value := range body {
+		if key != "provider" && key != "payload" && key != "payload_type" {
+			remaining[key] = value
+		}
+	}
 	result := SocialProviderPayload{
 		Provider:    validated["provider"].(string),
-		PayloadType: validated["payload"].(string),
-		Payload:     validated["payload_type"].(string),
+		Payload:     validated["payload"].(string),
+		PayloadType: validated["payload_type"].(string),
+		Remaining:   remaining,
 	}
 	return &result, nil
 }

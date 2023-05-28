@@ -69,6 +69,9 @@ func (useCase *DefaultUseCase) getInfoFromProvider(ctx context.Context, payload 
 	if provider == nil {
 		return nil, gohttplib.HTTP400(fmt.Sprintf("%s is not registered", payload.Provider))
 	}
+	if len(payload.Remaining) > 0 {
+		ctx = context.WithValue(ctx, oauth.SocialProviderRemainingKey, payload.Remaining)
+	}
 	var token string
 	if payload.PayloadType == "token" {
 		token = payload.Payload
