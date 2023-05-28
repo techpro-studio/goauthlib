@@ -6,7 +6,7 @@ import (
 	"github.com/techpro-studio/gohttplib/validator"
 )
 
-func MakeAuthorizationEntityVMap()validator.VMap {
+func MakeAuthorizationEntityVMap() validator.VMap {
 	return validator.VMap{
 		"type": validator.RequiredStringValidators("type", validator.StringContainsValidator("type", []string{
 			EntityTypePhone, EntityTypeEmail})),
@@ -14,28 +14,41 @@ func MakeAuthorizationEntityVMap()validator.VMap {
 	}
 }
 
-func MakeCodeVMap()validator.VMap {
+func MakeCodeVMap() validator.VMap {
 	return validator.VMap{
 		"code": validator.RequiredStringValidators("code", validator.StringLengthValidator(5, "code")),
 	}
 }
 
-func MakeSocialProviderVMap()validator.VMap {
+func MakeSocialProviderVMap() validator.VMap {
 	return validator.VMap{
-		"type": validator.RequiredStringValidators("type"),
-		"token": validator.RequiredStringValidators("token"),
+		"provider": validator.RequiredStringValidators("provider"),
+		"payload_type": validator.RequiredStringValidators("payload_type", validator.StringContainsValidator("payload_type", []string{
+			"token", "code"})),
+		"payload": validator.RequiredStringValidators("payload"),
 	}
 }
 
-func GetSocialProviderInfo(body map[string]interface{}) (string, string, error){
+type SocialProviderPayload struct {
+	Provider    string
+	PayloadType string
+	Payload     string
+}
+
+func GetSocialProviderPayloadInfo(body map[string]interface{}) (*SocialProviderPayload, error) {
 	validated, err := validator.ValidateBody(body, MakeSocialProviderVMap())
 	if err != nil {
-		return "", "", err
+		return nil, err
 	}
-	return validated["type"].(string), validated["token"].(string), nil
+	result := SocialProviderPayload{
+		Provider:    validated["provider"].(string),
+		PayloadType: validated["payload"].(string),
+		Payload:     validated["payload_type"].(string),
+	}
+	return &result, nil
 }
 
-func GetCode(body map[string]interface{}) (string, error){
+func GetCode(body map[string]interface{}) (string, error) {
 	validated, err := validator.ValidateBody(body, MakeCodeVMap())
 	if err != nil {
 		return "", err
@@ -43,7 +56,7 @@ func GetCode(body map[string]interface{}) (string, error){
 	return validated["code"].(string), nil
 }
 
-func GetAuthorizationEntityFromBody(body map[string]interface{}) (*AuthorizationEntity, error){
+func GetAuthorizationEntityFromBody(body map[string]interface{}) (*AuthorizationEntity, error) {
 	validated, err := validator.ValidateBody(body, MakeAuthorizationEntityVMap())
 	if err != nil {
 		return nil, err
@@ -52,18 +65,16 @@ func GetAuthorizationEntityFromBody(body map[string]interface{}) (*Authorization
 	value := validated["value"].(string)
 	switch _type {
 	case EntityTypeEmail:
-		if !utils.IsValidEmail(value){
+		if !utils.IsValidEmail(value) {
 			return nil, gohttplib.HTTP400("Invalid email")
 		}
 	default:
-		if !utils.IsValidPhone(value){
+		if !utils.IsValidPhone(value) {
 			return nil, gohttplib.HTTP400("Invalid phone")
 		}
 	}
 	return &AuthorizationEntity{
 		Value: value,
-		Type: _type,
+		Type:  _type,
 	}, nil
 }
-
-

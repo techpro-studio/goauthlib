@@ -1,57 +1,66 @@
-package goauthlib
+package oauth
 
 import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/techpro-studio/gohttplib"
 	"github.com/techpro-studio/gohttplib/utils"
+	"golang.org/x/oauth2"
 	"io/ioutil"
 	"net/http"
 	"time"
 )
 
-//FacebookProvider get info from facebook
-type FacebookProvider struct {
+// FacebookTokenProvider get info from facebook
+type FacebookTokenProvider struct {
 	UseTokenForBusinessAsID bool
 	Scope                   string
+	oauthConfig             *oauth2.Config
 }
 
-func NewFacebookProvider(UseTokenForBusinessAsID bool, Scope string) *FacebookProvider {
-	return &FacebookProvider{UseTokenForBusinessAsID: UseTokenForBusinessAsID, Scope: Scope}
+func (provider *FacebookTokenProvider) ExchangeCode(ctx context.Context, code string) (string, error) {
+	exchange, err := provider.oauthConfig.Exchange(ctx, code)
+	if err != nil {
+		return "", err
+	}
+	return exchange.AccessToken, nil
 }
 
-func (provider *FacebookProvider) getRawData(token string, fields string, photoDimension int) (map[string]interface{}, error) {
+func NewFacebookProvider(UseTokenForBusinessAsID bool, Scope string, oauthConfig *oauth2.Config) *FacebookTokenProvider {
+	return &FacebookTokenProvider{UseTokenForBusinessAsID: UseTokenForBusinessAsID, Scope: Scope, oauthConfig: oauthConfig}
+}
+
+func (provider *FacebookTokenProvider) getRawData(token string, fields string, photoDimension int) (map[string]interface{}, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	url := fmt.Sprintf(
 		"https://graph.facebook.com/v3.0/me?fields=%s&access_token=%s", fields, token)
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
-		return nil, gohttplib.HTTP400(err.Error())
+		return nil, err
 	}
 	req.WithContext(ctx)
 	response := map[string]interface{}{}
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
-		return nil, gohttplib.HTTP400(err.Error())
+		return nil, err
 	}
 	buf, _ := ioutil.ReadAll(resp.Body)
 	err = json.Unmarshal(buf, &response)
 	if err != nil {
-		return nil, gohttplib.HTTP400(err.Error())
+		return nil, err
 	}
 	response["avatar"] = fmt.Sprintf("https://graph.facebook.com/%s/picture?type=square&width=%d&height=%d", response["id"], photoDimension, photoDimension)
 	return response, nil
 }
 
-//GetInfoByToken implementation of Provider
-func (provider *FacebookProvider) GetInfoByToken(token string) (*ProviderResult, error) {
+// GetInfoByToken implementation of SocialProvider
+func (provider *FacebookTokenProvider) GetInfoByToken(ctx context.Context, token string) (*ProviderResult, error) {
 	raw, err := provider.getRawData(token, provider.Scope, 500)
 	if err != nil {
 		return nil, err
 	}
-	result := ProviderResult{Raw: raw, Type: EntityTypeFacebook}
+	result := ProviderResult{Raw: raw, Type: EntityTypeOAuthFacebook}
 	result.ID = raw["id"].(string)
 	tokenForBusiness, ok := raw["token_for_business"].(string)
 	if provider.UseTokenForBusinessAsID && ok {

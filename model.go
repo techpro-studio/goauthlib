@@ -1,18 +1,17 @@
 package goauthlib
 
-//Response is sent back
+// Response is sent back
 type Response struct {
 	Token    string                 `json:"token"`
 	User     User                   `json:"user"`
 	UserInfo map[string]interface{} `json:"user_info,omitempty"`
 }
 
-var OK = map[string]int {"ok": 1}
+var OK = map[string]int{"ok": 1}
 
 const (
-	EntityTypeEmail    = "email"
-	EntityTypePhone    = "phone"
-	EntityTypeFacebook = "facebook"
+	EntityTypeEmail = "email"
+	EntityTypePhone = "phone"
 )
 
 // User is an object of auth service
@@ -26,8 +25,6 @@ type AuthorizationEntity struct {
 	Type  string `json:"type"`
 }
 
-
-
 func (e AuthorizationEntity) isEqual(another interface{}) bool {
 	anotherEntity, ok := another.(AuthorizationEntity)
 	if !ok {
@@ -36,14 +33,14 @@ func (e AuthorizationEntity) isEqual(another interface{}) bool {
 	return anotherEntity.Value == e.Value && anotherEntity.Type == e.Type
 }
 
-func (e AuthorizationEntity) GetHash()string {
-	return e.Type+e.Value
+func (e AuthorizationEntity) GetHash() string {
+	return e.Type + e.Value
 }
 
-type Verification struct{
-	ID string
-	Code string
-	Destination string
+type Verification struct {
+	ID              string
+	Code            string
+	Destination     string
 	DestinationType string
-	Timestamp int64
+	Timestamp       int64
 }

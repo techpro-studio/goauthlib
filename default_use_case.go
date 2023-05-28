@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/dgrijalva/jwt-go"
+	"github.com/techpro-studio/goauthlib/oauth"
 	"github.com/techpro-studio/gohttplib"
 	"github.com/techpro-studio/gohttplib/utils"
 	"math/rand"
@@ -23,7 +24,7 @@ type OTPDelivery interface {
 }
 
 type DefaultUseCase struct {
-	SocialProviders map[string]Provider
+	SocialProviders map[string]oauth.SocialProvider
 	Deliveries      map[string]OTPDelivery
 	repository      Repository
 	config          Config
@@ -34,15 +35,15 @@ func (useCase *DefaultUseCase) RegisterOTPDelivery(key string, delivery OTPDeliv
 }
 
 func NewDefaultUseCase(repository Repository, config Config) *DefaultUseCase {
-	return &DefaultUseCase{repository: repository, SocialProviders: map[string]Provider{}, Deliveries: map[string]OTPDelivery{} ,config: config}
+	return &DefaultUseCase{repository: repository, SocialProviders: map[string]oauth.SocialProvider{}, Deliveries: map[string]OTPDelivery{}, config: config}
 }
 
-func (useCase *DefaultUseCase) RegisterSocialProvider(key string, provider Provider) {
+func (useCase *DefaultUseCase) RegisterSocialProvider(key string, provider oauth.SocialProvider) {
 	useCase.SocialProviders[key] = provider
 }
 
-func (useCase *DefaultUseCase) AuthenticateViaSocialProvider(ctx context.Context, providerType, token string) (*Response, error) {
-	result, err := useCase.getInfoFromProvider(providerType, token)
+func (useCase *DefaultUseCase) AuthenticateViaSocialProvider(ctx context.Context, payload SocialProviderPayload) (*Response, error) {
+	result, err := useCase.getInfoFromProvider(ctx, payload)
 	if err != nil {
 		return nil, err
 	}
@@ -55,7 +56,7 @@ func (useCase *DefaultUseCase) AuthenticateViaSocialProvider(ctx context.Context
 	return useCase.generateResponseFor(usr, result.Raw)
 }
 
-func (useCase *DefaultUseCase) appendNewEntitiesFromSocialToUserIfNeed(ctx context.Context, usr *User, result *ProviderResult) {
+func (useCase *DefaultUseCase) appendNewEntitiesFromSocialToUserIfNeed(ctx context.Context, usr *User, result *oauth.ProviderResult) {
 	newEntities := useCase.findNewEntitiesInSocialProviderResult(usr.Entities, result)
 	if len(newEntities) > 0 {
 		usr.Entities = append(usr.Entities, newEntities...)
@@ -63,14 +64,24 @@ func (useCase *DefaultUseCase) appendNewEntitiesFromSocialToUserIfNeed(ctx conte
 	}
 }
 
-func (useCase *DefaultUseCase) getInfoFromProvider(_type string, token string) (*ProviderResult, error) {
-	provider := useCase.SocialProviders[_type]
+func (useCase *DefaultUseCase) getInfoFromProvider(ctx context.Context, payload SocialProviderPayload) (*oauth.ProviderResult, error) {
+	provider := useCase.SocialProviders[payload.Provider]
 	if provider == nil {
-		return nil, gohttplib.HTTP400(fmt.Sprintf("%s is not registered", _type))
+		return nil, gohttplib.HTTP400(fmt.Sprintf("%s is not registered", payload.Provider))
 	}
-	result, err := provider.GetInfoByToken(token)
+	var token string
+	if payload.PayloadType == "token" {
+		token = payload.Payload
+	} else {
+		result, err := provider.ExchangeCode(ctx, payload.Payload)
+		if err != nil {
+			return nil, gohttplib.HTTP400(err.Error())
+		}
+		token = result
+	}
+	result, err := provider.GetInfoByToken(ctx, token)
 	if err != nil {
-		return nil, err
+		return nil, gohttplib.HTTP400(err.Error())
 	}
 	return result, nil
 }
@@ -90,7 +101,7 @@ func (useCase *DefaultUseCase) generateResponseFor(usr *User, userInfo map[strin
 func (useCase *DefaultUseCase) SendCode(ctx context.Context, entity AuthorizationEntity) error {
 	code := fmt.Sprintf("%d", rand.Intn(89999)+10000)
 	dataDelivery := useCase.Deliveries[entity.Type]
-	if dataDelivery == nil{
+	if dataDelivery == nil {
 		return gohttplib.HTTP400("type not found")
 	}
 	useCase.repository.CreateVerification(ctx, entity, code)
@@ -159,8 +170,8 @@ func (useCase *DefaultUseCase) RemoveAuthenticationEntity(ctx context.Context, u
 	return nil
 }
 
-func (useCase *DefaultUseCase) AddSocialAuthenticationEntity(ctx context.Context, user *User, socialProvider string, token string) (*User, error) {
-	result, err := useCase.getInfoFromProvider(socialProvider, token)
+func (useCase *DefaultUseCase) AddSocialAuthenticationEntity(ctx context.Context, user *User, payload SocialProviderPayload) (*User, error) {
+	result, err := useCase.getInfoFromProvider(ctx, payload)
 	if err != nil {
 		return nil, err
 	}
@@ -197,7 +208,7 @@ func (useCase *DefaultUseCase) VerifyAuthenticationEntity(ctx context.Context, u
 	return user, nil
 }
 
-func (useCase *DefaultUseCase) findNewEntitiesInSocialProviderResult(old []AuthorizationEntity, result *ProviderResult) []AuthorizationEntity {
+func (useCase *DefaultUseCase) findNewEntitiesInSocialProviderResult(old []AuthorizationEntity, result *oauth.ProviderResult) []AuthorizationEntity {
 	socialEntity := AuthorizationEntity{Type: result.Type, Value: result.ID}
 	socialMap := map[string]*AuthorizationEntity{
 		socialEntity.GetHash(): &socialEntity,

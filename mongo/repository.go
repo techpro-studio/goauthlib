@@ -3,6 +3,7 @@ package mongo
 import (
 	"context"
 	"github.com/techpro-studio/goauthlib"
+	"github.com/techpro-studio/goauthlib/oauth"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
@@ -18,11 +19,11 @@ type Repository struct {
 
 func (repo *Repository) DeleteVerification(ctx context.Context, id string) {
 	objId, err := primitive.ObjectIDFromHex(id)
-	if err != nil{
+	if err != nil {
 		panic(err)
 	}
-	_, err = repo.Client.Database(dbName).Collection(verificationCollection).DeleteOne(ctx, bson.M{"_id":objId})
-	if err != nil{
+	_, err = repo.Client.Database(dbName).Collection(verificationCollection).DeleteOne(ctx, bson.M{"_id": objId})
+	if err != nil {
 		panic(err)
 	}
 }
@@ -31,7 +32,7 @@ func NewRepository(client *mongo.Client) *Repository {
 	return &Repository{Client: client}
 }
 
-func (repo *Repository) GetVerificationForEntity(ctx context.Context,entity goauthlib.AuthorizationEntity) *goauthlib.Verification {
+func (repo *Repository) GetVerificationForEntity(ctx context.Context, entity goauthlib.AuthorizationEntity) *goauthlib.Verification {
 	return repo.getOneVerification(ctx, bson.M{"destination": entity.Value, "destination_type": entity.Type})
 }
 
@@ -39,20 +40,20 @@ func (repo *Repository) CreateVerification(ctx context.Context, entity goauthlib
 	q := bson.M{"destination": entity.Value, "destination_type": entity.Type}
 	u := bson.M{
 		"$set": bson.M{
-			"destination": entity.Value,
+			"destination":      entity.Value,
 			"destination_type": entity.Type,
-			"timestamp": time.Now().Unix(),
-			"code": verificationCode,
+			"timestamp":        time.Now().Unix(),
+			"code":             verificationCode,
 		},
 	}
 	yes := true
-	_, err := repo.Client.Database(dbName).Collection(verificationCollection).UpdateOne(ctx,  q, u, &options.UpdateOptions{Upsert: &yes})
-	if err != nil{
+	_, err := repo.Client.Database(dbName).Collection(verificationCollection).UpdateOne(ctx, q, u, &options.UpdateOptions{Upsert: &yes})
+	if err != nil {
 		panic(err)
 	}
 }
 
-func (repo *Repository) GetForSocial(ctx context.Context, result *goauthlib.ProviderResult) *goauthlib.User {
+func (repo *Repository) GetForSocial(ctx context.Context, result *oauth.ProviderResult) *goauthlib.User {
 	or := []bson.M{{"entities.type": result.Type, "entities.value": result.ID}}
 	if result.Email != "" {
 		or = append(or, bson.M{"entities.type": goauthlib.EntityTypeEmail, "entities.value": result.Email})
@@ -63,8 +64,8 @@ func (repo *Repository) GetForSocial(ctx context.Context, result *goauthlib.Prov
 	return repo.getOneUser(ctx, bson.M{"$or": or})
 }
 
-func (repo *Repository) CreateForSocial(ctx context.Context, result *goauthlib.ProviderResult) *goauthlib.User {
-	entities := []mongoAuthorizationEntity{{Type: result.Type, Value:result.ID}}
+func (repo *Repository) CreateForSocial(ctx context.Context, result *oauth.ProviderResult) *goauthlib.User {
+	entities := []mongoAuthorizationEntity{{Type: result.Type, Value: result.ID}}
 	if result.Email != "" {
 		entities = append(entities, mongoAuthorizationEntity{
 			Value: result.Email,
@@ -89,11 +90,11 @@ func (repo *Repository) CreateForSocial(ctx context.Context, result *goauthlib.P
 }
 
 func (repo *Repository) getOneUser(ctx context.Context, query bson.M) *goauthlib.User {
-	res := repo.Client.Database(dbName).Collection(userCollection).FindOne(ctx,  query)
+	res := repo.Client.Database(dbName).Collection(userCollection).FindOne(ctx, query)
 	var mongoUser mongoUser
 	err := res.Decode(&mongoUser)
 	if err != nil {
-		if err.Error() != notFoundDocumentError{
+		if err.Error() != notFoundDocumentError {
 			panic(err)
 		}
 		return nil
@@ -102,7 +103,7 @@ func (repo *Repository) getOneUser(ctx context.Context, query bson.M) *goauthlib
 }
 
 func (repo *Repository) getOneVerification(ctx context.Context, query bson.M) *goauthlib.Verification {
-	res := repo.Client.Database(dbName).Collection(verificationCollection).FindOne(ctx,  query)
+	res := repo.Client.Database(dbName).Collection(verificationCollection).FindOne(ctx, query)
 	if res.Err() != nil {
 		return nil
 	}
@@ -118,13 +119,13 @@ func (repo *Repository) GetForEntity(ctx context.Context, entity goauthlib.Autho
 	return repo.getOneUser(ctx, bson.M{"entities.type": entity.Type, "entities.value": entity.Value})
 }
 
-func (repo *Repository) CreateForEntity(ctx context.Context, entity goauthlib.AuthorizationEntity) *goauthlib.User{
+func (repo *Repository) CreateForEntity(ctx context.Context, entity goauthlib.AuthorizationEntity) *goauthlib.User {
 	mongoUser := mongoUser{
 		ID:       primitive.NewObjectID(),
 		Entities: []mongoAuthorizationEntity{toMongoEntity(entity)},
 	}
 	_, err := repo.Client.Database(dbName).Collection(userCollection).InsertOne(ctx, mongoUser)
-	if err != nil{
+	if err != nil {
 		panic(err)
 	}
 	return toDomainUser(&mongoUser)
