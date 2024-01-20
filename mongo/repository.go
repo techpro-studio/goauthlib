@@ -64,6 +64,14 @@ func (repo *Repository) GetForSocial(ctx context.Context, result *oauth.Provider
 	return repo.getOneUser(ctx, bson.M{"$or": or})
 }
 
+func (repo *Repository) SaveOAuthData(ctx context.Context, result *oauth.ProviderResult) {
+	upsert := true
+	_, err := repo.Client.Database(dbName).Collection(oauthDataCollection).UpdateOne(ctx, map[string]interface{}{"type": result.Type, "provider_id": result.ID}, map[string]interface{}{"$set": map[string]interface{}{"data": result.Raw}}, &options.UpdateOptions{Upsert: &upsert})
+	if err != nil {
+		panic(err)
+	}
+}
+
 func (repo *Repository) CreateForSocial(ctx context.Context, result *oauth.ProviderResult) *goauthlib.User {
 	entities := []mongoAuthorizationEntity{{Type: result.Type, Value: result.ID}}
 	if result.Email != "" {

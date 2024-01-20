@@ -7,6 +7,7 @@ import (
 	"github.com/techpro-studio/gohttplib/utils"
 	"golang.org/x/oauth2"
 	"io/ioutil"
+	"log"
 	"net/http"
 	"time"
 )
@@ -14,7 +15,6 @@ import (
 // FacebookProvider get info from facebook
 type FacebookProvider struct {
 	UseTokenForBusinessAsID bool
-	Scope                   string
 	oauthConfig             *oauth2.Config
 }
 
@@ -26,15 +26,15 @@ func (provider *FacebookProvider) GetOAuthConfig() *oauth2.Config {
 	return provider.oauthConfig
 }
 
-func NewFacebookProvider(UseTokenForBusinessAsID bool, Scope string, oauthConfig *oauth2.Config) *FacebookProvider {
-	return &FacebookProvider{UseTokenForBusinessAsID: UseTokenForBusinessAsID, Scope: Scope, oauthConfig: oauthConfig}
+func NewFacebookProvider(UseTokenForBusinessAsID bool, oauthConfig *oauth2.Config) *FacebookProvider {
+	return &FacebookProvider{UseTokenForBusinessAsID: UseTokenForBusinessAsID, oauthConfig: oauthConfig}
 }
 
-func (provider *FacebookProvider) getRawData(token string, fields string, photoDimension int) (map[string]interface{}, error) {
+func (provider *FacebookProvider) getRawData(token string, photoDimension int) (map[string]interface{}, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	url := fmt.Sprintf(
-		"https://graph.facebook.com/v3.0/me?fields=%s&access_token=%s", fields, token)
+		"https://graph.facebook.com/v16.0/me?fields=email,name,token_for_business,id&access_token=%s", token)
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
 		return nil, err
@@ -48,6 +48,7 @@ func (provider *FacebookProvider) getRawData(token string, fields string, photoD
 	buf, _ := ioutil.ReadAll(resp.Body)
 	err = json.Unmarshal(buf, &response)
 	if err != nil {
+		log.Printf(string(buf))
 		return nil, err
 	}
 	response["avatar"] = fmt.Sprintf("https://graph.facebook.com/%s/picture?type=square&width=%d&height=%d", response["id"], photoDimension, photoDimension)
@@ -56,7 +57,7 @@ func (provider *FacebookProvider) getRawData(token string, fields string, photoD
 
 // GetInfoByToken implementation of SocialProvider
 func (provider *FacebookProvider) GetInfoByToken(ctx context.Context, token string) (*ProviderResult, error) {
-	raw, err := provider.getRawData(token, provider.Scope, 500)
+	raw, err := provider.getRawData(token, 500)
 	if err != nil {
 		return nil, err
 	}

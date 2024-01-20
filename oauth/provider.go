@@ -8,7 +8,9 @@ import (
 
 const (
 	EntityTypeOAuthFacebook = "facebook"
+	EntityTypeOAuthApple    = "apple"
 	EntityTypeOAuthGithub   = "github"
+	EntityTypeOAuthGoogle   = "google"
 )
 
 // ProviderResult is a result of authentication via social provider

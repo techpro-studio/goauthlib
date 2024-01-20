@@ -8,8 +8,6 @@ import (
 
 func MakeAuthorizationEntityVMap() validator.VMap {
 	return validator.VMap{
-		"type": validator.RequiredStringValidators("type", validator.StringContainsValidator("type", []string{
-			EntityTypePhone, EntityTypeEmail})),
 		"value": validator.RequiredStringValidators("value"),
 	}
 }
@@ -69,18 +67,17 @@ func GetAuthorizationEntityFromBody(body map[string]interface{}) (*Authorization
 	if err != nil {
 		return nil, err
 	}
-	_type := validated["type"].(string)
+	var _type string
 	value := validated["value"].(string)
-	switch _type {
-	case EntityTypeEmail:
-		if !utils.IsValidEmail(value) {
-			return nil, gohttplib.HTTP400("Invalid email")
-		}
-	default:
-		if !utils.IsValidPhone(value) {
-			return nil, gohttplib.HTTP400("Invalid phone")
-		}
+	if utils.IsValidEmail(value) {
+		_type = EntityTypeEmail
+	} else if utils.IsValidPhone(value) {
+		_type = EntityTypePhone
+		return nil, gohttplib.NewServerError(400, "CREDENTIAL_PHONE_TEMPORARY_UNAVAILABLE", "Phone credentials temporary unavailable", "value", nil)
+	} else {
+		return nil, gohttplib.NewServerError(400, "INVALID_CREDENTIAL", "Invalid credential. Should be phone or email.", "value", nil)
 	}
+
 	return &AuthorizationEntity{
 		Value: value,
 		Type:  _type,

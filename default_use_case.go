@@ -53,6 +53,7 @@ func (useCase *DefaultUseCase) AuthenticateViaSocialProvider(ctx context.Context
 	} else {
 		useCase.appendNewEntitiesFromSocialToUserIfNeed(ctx, usr, result)
 	}
+	useCase.repository.SaveOAuthData(ctx, result)
 	return useCase.generateResponseFor(usr, result.Raw)
 }
 
@@ -102,7 +103,7 @@ func (useCase *DefaultUseCase) generateResponseFor(usr *User, userInfo map[strin
 }
 
 func (useCase *DefaultUseCase) SendCode(ctx context.Context, entity AuthorizationEntity) error {
-	code := fmt.Sprintf("%d", rand.Intn(89999)+10000)
+	code := fmt.Sprintf("%d", rand.Intn(8999999)+1000000)
 	dataDelivery := useCase.Deliveries[entity.Type]
 	if dataDelivery == nil {
 		return gohttplib.HTTP400("type not found")

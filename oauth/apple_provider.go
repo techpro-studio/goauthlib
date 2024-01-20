@@ -16,13 +16,6 @@ type AppleProvider struct {
 
 func (provider *AppleProvider) ExchangeCode(ctx context.Context, code string) (string, error) {
 	clientId := provider.ClientId
-	remaining, ok := ctx.Value(SocialProviderRemainingKey).(map[string]interface{})
-	if ok {
-		id, idOk := remaining["client_id"].(string)
-		if idOk {
-			clientId = id
-		}
-	}
 	secret, err := apple.GenerateClientSecret(provider.Key, provider.TeamId, clientId, provider.KeyId)
 	if err != nil {
 		return "", gohttplib.HTTP400(err.Error())
@@ -60,7 +53,7 @@ func (provider *AppleProvider) GetInfoByToken(ctx context.Context, token string)
 	email := (*claim)["email"].(string)
 	result := ProviderResult{
 		ID:    id,
-		Type:  "apple",
+		Type:  EntityTypeOAuthApple,
 		Email: email,
 		Phone: "",
 		Raw:   map[string]interface{}(*claim),
