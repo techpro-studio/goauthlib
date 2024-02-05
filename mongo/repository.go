@@ -4,6 +4,7 @@ import (
 	"context"
 	"github.com/techpro-studio/goauthlib"
 	"github.com/techpro-studio/goauthlib/oauth"
+	"github.com/techpro-studio/gohttplib/utils"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
@@ -14,7 +15,8 @@ import (
 const notFoundDocumentError = "mongo: no documents in result"
 
 type Repository struct {
-	Client *mongo.Client
+	Client  *mongo.Client
+	service string
 }
 
 func (repo *Repository) DeleteVerification(ctx context.Context, id string) {
@@ -28,8 +30,8 @@ func (repo *Repository) DeleteVerification(ctx context.Context, id string) {
 	}
 }
 
-func NewRepository(client *mongo.Client) *Repository {
-	return &Repository{Client: client}
+func NewRepository(client *mongo.Client, service string) *Repository {
+	return &Repository{Client: client, service: service}
 }
 
 func (repo *Repository) GetVerificationForEntity(ctx context.Context, entity goauthlib.AuthorizationEntity) *goauthlib.Verification {
@@ -89,6 +91,7 @@ func (repo *Repository) CreateForSocial(ctx context.Context, result *oauth.Provi
 	mongoUser := mongoUser{
 		ID:       primitive.NewObjectID(),
 		Entities: entities,
+		Services: []string{repo.service},
 	}
 	_, err := repo.Client.Database(dbName).Collection(userCollection).InsertOne(ctx, mongoUser)
 	if err != nil {
@@ -106,6 +109,9 @@ func (repo *Repository) getOneUser(ctx context.Context, query bson.M) *goauthlib
 			panic(err)
 		}
 		return nil
+	}
+	if !utils.ContainsString(mongoUser.Services, repo.service) {
+		repo.ensureService(ctx, mongoUser.ID)
 	}
 	return toDomainUser(&mongoUser)
 }
@@ -131,6 +137,7 @@ func (repo *Repository) CreateForEntity(ctx context.Context, entity goauthlib.Au
 	mongoUser := mongoUser{
 		ID:       primitive.NewObjectID(),
 		Entities: []mongoAuthorizationEntity{toMongoEntity(entity)},
+		Services: []string{repo.service},
 	}
 	_, err := repo.Client.Database(dbName).Collection(userCollection).InsertOne(ctx, mongoUser)
 	if err != nil {
@@ -139,12 +146,22 @@ func (repo *Repository) CreateForEntity(ctx context.Context, entity goauthlib.Au
 	return toDomainUser(&mongoUser)
 }
 
+func (repo *Repository) ensureService(ctx context.Context, userId primitive.ObjectID) {
+	_, err := repo.Client.
+		Database(dbName).
+		Collection(userCollection).
+		UpdateOne(ctx, bson.M{"_id": userId}, bson.M{"$addToSet": bson.A{repo.service}}, nil)
+	if err != nil {
+		panic(err)
+	}
+}
+
 func (repo *Repository) Save(ctx context.Context, model *goauthlib.User) {
 	mongoUser := toMongoUser(model)
 	_, err := repo.Client.
 		Database(dbName).
 		Collection(userCollection).
-		UpdateOne(ctx, bson.M{"_id": mongoUser.ID}, bson.M{"$set": bson.M{"entities": mongoUser.Entities}}, nil)
+		UpdateOne(ctx, bson.M{"_id": mongoUser.ID}, bson.M{"$set": bson.M{"entities": mongoUser.Entities}, "$addToSet": bson.A{repo.service}}, nil)
 	if err != nil {
 		panic(err)
 	}
