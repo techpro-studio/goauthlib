@@ -18,6 +18,7 @@ const (
 type User struct {
 	ID       string                `json:"id"`
 	Entities []AuthorizationEntity `json:"entities"`
+	Services []string              `json:"services"`
 }
 
 type AuthorizationEntity struct {

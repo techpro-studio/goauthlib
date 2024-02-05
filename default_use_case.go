@@ -13,10 +13,11 @@ import (
 
 type Config struct {
 	sharedSecret string
+	serviceName  string
 }
 
-func NewConfig(sharedSecret string) *Config {
-	return &Config{sharedSecret: sharedSecret}
+func NewConfig(sharedSecret string, serviceName string) *Config {
+	return &Config{sharedSecret: sharedSecret, serviceName: serviceName}
 }
 
 type OTPDelivery interface {
@@ -61,8 +62,15 @@ func (useCase *DefaultUseCase) appendNewEntitiesFromSocialToUserIfNeed(ctx conte
 	newEntities := useCase.findNewEntitiesInSocialProviderResult(usr.Entities, result)
 	if len(newEntities) > 0 {
 		usr.Entities = append(usr.Entities, newEntities...)
-		useCase.repository.Save(ctx, usr)
+		useCase.saveUser(ctx, usr)
 	}
+}
+
+func (useCase *DefaultUseCase) saveUser(ctx context.Context, usr *User) {
+	if (len(usr.Services)) == 0 || !utils.ContainsString(usr.Services, useCase.config.serviceName) {
+		usr.Services = append(usr.Services, useCase.config.serviceName)
+	}
+	useCase.repository.Save(ctx, usr)
 }
 
 func (useCase *DefaultUseCase) getInfoFromProvider(ctx context.Context, payload SocialProviderPayload) (*oauth.ProviderResult, error) {
@@ -170,7 +178,7 @@ func (useCase *DefaultUseCase) RemoveAuthenticationEntity(ctx context.Context, u
 	usrEntities := user.Entities
 	usrEntities = append(usrEntities[:foundIdx], usrEntities[foundIdx+1:]...)
 	user.Entities = usrEntities
-	useCase.repository.Save(ctx, &user)
+	useCase.saveUser(ctx, &user)
 	return nil
 }
 
@@ -207,7 +215,7 @@ func (useCase *DefaultUseCase) VerifyAuthenticationEntity(ctx context.Context, u
 	usrEntities := user.Entities
 	usrEntities = append(usrEntities, entity)
 	user.Entities = usrEntities
-	useCase.repository.Save(ctx, user)
+	useCase.saveUser(ctx, user)
 	useCase.repository.DeleteVerification(ctx, verification.ID)
 	return user, nil
 }
@@ -227,7 +235,7 @@ func (useCase *DefaultUseCase) findNewEntitiesInSocialProviderResult(old []Autho
 	if result.Phone != "" {
 		emailEntity := AuthorizationEntity{
 			Value: result.Email,
-			Type:  EntityTypeEmail,
+			Type:  EntityTypePhone,
 		}
 		socialMap[emailEntity.GetHash()] = &emailEntity
 	}
