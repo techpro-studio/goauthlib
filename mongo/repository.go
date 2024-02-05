@@ -150,7 +150,7 @@ func (repo *Repository) ensureService(ctx context.Context, userId primitive.Obje
 	_, err := repo.Client.
 		Database(dbName).
 		Collection(userCollection).
-		UpdateOne(ctx, bson.M{"_id": userId}, bson.M{"$addToSet": bson.A{repo.service}}, nil)
+		UpdateOne(ctx, bson.M{"_id": userId}, bson.M{"$addToSet": bson.M{"services": repo.service}}, nil)
 	if err != nil {
 		panic(err)
 	}
@@ -161,7 +161,7 @@ func (repo *Repository) Save(ctx context.Context, model *goauthlib.User) {
 	_, err := repo.Client.
 		Database(dbName).
 		Collection(userCollection).
-		UpdateOne(ctx, bson.M{"_id": mongoUser.ID}, bson.M{"$set": bson.M{"entities": mongoUser.Entities}, "$addToSet": bson.A{repo.service}}, nil)
+		UpdateOne(ctx, bson.M{"_id": mongoUser.ID}, bson.M{"$set": bson.M{"entities": mongoUser.Entities}, "$addToSet": bson.M{"services": repo.service}}, nil)
 	if err != nil {
 		panic(err)
 	}
