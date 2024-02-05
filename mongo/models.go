@@ -8,7 +8,6 @@ import (
 type mongoUser struct {
 	ID       primitive.ObjectID         `bson:"_id"`
 	Entities []mongoAuthorizationEntity `bson:"entities"`
-	Services []string                   `bson:"services"`
 }
 
 type mongoAuthorizationEntity struct {
@@ -18,7 +17,7 @@ type mongoAuthorizationEntity struct {
 
 func toDomainEntity(m mongoAuthorizationEntity) auth.AuthorizationEntity {
 	return auth.AuthorizationEntity{
-		Type:  m.Type,
+		Type: m.Type,
 		Value: m.Value,
 	}
 }
@@ -26,7 +25,7 @@ func toDomainEntity(m mongoAuthorizationEntity) auth.AuthorizationEntity {
 func toMongoEntity(e auth.AuthorizationEntity) mongoAuthorizationEntity {
 	return mongoAuthorizationEntity{
 		Value: e.Value,
-		Type:  e.Type,
+		Type: e.Type,
 	}
 }
 
@@ -39,9 +38,8 @@ func toDomainUser(m *mongoUser) *auth.User {
 		entities = append(entities, toDomainEntity(e))
 	}
 	return &auth.User{
-		ID:       m.ID.Hex(),
+		ID: m.ID.Hex(),
 		Entities: entities,
-		Services: m.Services,
 	}
 }
 
@@ -58,9 +56,8 @@ func toMongoUser(u *auth.User) *mongoUser {
 		panic(err)
 	}
 	return &mongoUser{
-		ID:       id,
+		ID: id,
 		Entities: entities,
-		Services: u.Services,
 	}
 }
 
@@ -69,12 +66,12 @@ type mongoVerification struct {
 	Code            string             `bson:"code"`
 	Destination     string             `bson:"destination"`
 	DestinationType string             `bson:"destination_type"`
-	Timestamp       int64              `json:"timestamp"`
+	Timestamp         int64              `json:"timestamp"`
 }
 
 func toMongoVerification(v *auth.Verification) *mongoVerification {
 	id, err := primitive.ObjectIDFromHex(v.ID)
-	if err != nil {
+	if err != nil{
 		panic(err)
 	}
 	return &mongoVerification{
@@ -82,7 +79,7 @@ func toMongoVerification(v *auth.Verification) *mongoVerification {
 		Code:            v.Code,
 		Destination:     v.Destination,
 		DestinationType: v.DestinationType,
-		Timestamp:       v.Timestamp,
+		Timestamp:         v.Timestamp,
 	}
 }
 
@@ -92,6 +89,6 @@ func toDomainVerification(m *mongoVerification) *auth.Verification {
 		Code:            m.Code,
 		Destination:     m.Destination,
 		DestinationType: m.DestinationType,
-		Timestamp:       m.Timestamp,
+		Timestamp:         m.Timestamp,
 	}
 }
