@@ -138,6 +138,7 @@ func (repo *Repository) CreateForEntity(ctx context.Context, entity goauthlib.Au
 		ID:       primitive.NewObjectID(),
 		Entities: []mongoAuthorizationEntity{toMongoEntity(entity)},
 		Services: []string{repo.service},
+		Info:     map[string]any{},
 	}
 	_, err := repo.Client.Database(dbName).Collection(userCollection).InsertOne(ctx, mongoUser)
 	if err != nil {
@@ -161,7 +162,7 @@ func (repo *Repository) Save(ctx context.Context, model *goauthlib.User) {
 	_, err := repo.Client.
 		Database(dbName).
 		Collection(userCollection).
-		UpdateOne(ctx, bson.M{"_id": mongoUser.ID}, bson.M{"$set": bson.M{"entities": mongoUser.Entities}, "$addToSet": bson.M{"services": repo.service}}, nil)
+		UpdateOne(ctx, bson.M{"_id": mongoUser.ID}, bson.M{"$set": bson.M{"entities": mongoUser.Entities, "info": mongoUser.Info}, "$addToSet": bson.M{"services": repo.service}}, nil)
 	if err != nil {
 		panic(err)
 	}

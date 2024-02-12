@@ -101,3 +101,14 @@ func (t *Transport) VerifyAuthenticationEntityHandler(w http.ResponseWriter, r *
 		return t.useCase.VerifyAuthenticationEntity(r.Context(), &usr, entity, code)
 	})
 }
+
+func (t *Transport) PatchInfoHandler(w http.ResponseWriter, r *http.Request) {
+	usr := GetUserFromRequestWithPanic(r)
+	body, err := gohttplib.GetBody(r)
+	if err != nil {
+		gohttplib.SafeConvertToServerError(err).Write(w)
+		return
+	}
+	patched, err := t.useCase.PatchUserInfo(r.Context(), &usr, body)
+	gohttplib.WriteJsonOrError(w, patched, 200, err)
+}

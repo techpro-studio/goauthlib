@@ -18,6 +18,7 @@ const (
 type User struct {
 	ID       string                `json:"id"`
 	Entities []AuthorizationEntity `json:"entities"`
+	Info     map[string]any        `json:"info,omitempty"`
 }
 
 type AuthorizationEntity struct {

@@ -12,6 +12,7 @@ func RegisterPrivateInRouter(t *Transport, router gohttplib.Router, usrMiddlewar
 }
 
 func RegisterPublicInRouter(t *Transport, router gohttplib.Router, usrMiddleware gohttplib.Middleware, defaultMiddleWare gohttplib.Middleware) {
+	router.Patch("/user/info", defaultMiddleWare(usrMiddleware(http.HandlerFunc(t.PatchInfoHandler))))
 	router.Post("/auth/send", defaultMiddleWare(http.HandlerFunc(t.SendCodeHandler)))
 	router.Post("/user/entity/remove", defaultMiddleWare(usrMiddleware(http.HandlerFunc(t.RemoveAuthenticationEntityHandler))))
 	router.Post("/user/entity/social", defaultMiddleWare(usrMiddleware(http.HandlerFunc(t.AddSocialAuthenticationEntityHandler))))

@@ -8,6 +8,7 @@ import (
 type mongoUser struct {
 	ID       primitive.ObjectID         `bson:"_id"`
 	Entities []mongoAuthorizationEntity `bson:"entities"`
+	Info     map[string]any             `bson:"info"`
 	Services []string                   `bson:"services"`
 }
 
@@ -41,6 +42,7 @@ func toDomainUser(m *mongoUser) *auth.User {
 	return &auth.User{
 		ID:       m.ID.Hex(),
 		Entities: entities,
+		Info:     m.Info,
 	}
 }
 
@@ -59,6 +61,7 @@ func toMongoUser(u *auth.User) *mongoUser {
 	return &mongoUser{
 		ID:       id,
 		Entities: entities,
+		Info:     u.Info,
 	}
 }
 

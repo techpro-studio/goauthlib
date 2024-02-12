@@ -30,6 +30,14 @@ type DefaultUseCase struct {
 	config          Config
 }
 
+func (useCase *DefaultUseCase) PatchUserInfo(ctx context.Context, usr *User, body map[string]interface{}) (*User, error) {
+	for k, v := range body {
+		usr.Info[k] = v
+	}
+	useCase.repository.Save(ctx, usr)
+	return usr, nil
+}
+
 func (useCase *DefaultUseCase) RegisterOTPDelivery(key string, delivery OTPDelivery) {
 	useCase.Deliveries[key] = delivery
 }

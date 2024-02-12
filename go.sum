@@ -878,6 +878,7 @@ github.com/stretchr/testify v1.8.1 h1:w7B6lhMri9wdJUVmEZPGGhZzrYTPvgJArz7wNPgYKs
 github.com/stretchr/testify v1.8.1/go.mod h1:w2LPCIKwWwSfY2zedu0+kehJoqGctiVI29o6fzry7u4=
 github.com/techpro-studio/gohttplib v0.0.0-20220115085116-704797c1ab23 h1:70XTw1g3/cPJ5KsGMu75qNzw85ZAb76eN3qYuO/w9hk=
 github.com/techpro-studio/gohttplib v0.0.0-20220115085116-704797c1ab23/go.mod h1:TliTozx4sfvMaQK2ExDX3n0Je0b7g6i6NwuimTYgVEs=
+github.com/techpro-studio/gohttplib v0.0.3/go.mod h1:TliTozx4sfvMaQK2ExDX3n0Je0b7g6i6NwuimTYgVEs=
 github.com/tideland/golib v4.24.2+incompatible h1:QYMkA3Sr1G8UWJTDsptrLOUwB6N89ETlVBnK5lZXKAw=
 github.com/tideland/golib v4.24.2+incompatible/go.mod h1:HPHOmtCdCHUQiGAVZnlOH5eNTAEmM7R9oCFXdgvkB+Y=
 github.com/tideland/gorest v2.15.5+incompatible h1:R19qOZQaCzT0x7ZExRd3avyG39jNLFeq2/HYetctYYo=

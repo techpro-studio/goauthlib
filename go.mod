@@ -9,7 +9,7 @@ require (
 	github.com/julienschmidt/httprouter v1.3.0 // indirect
 	github.com/klauspost/compress v1.17.4 // indirect
 	github.com/montanaflynn/stats v0.7.1 // indirect
-	github.com/techpro-studio/gohttplib v0.0.0-20220115085116-704797c1ab23
+	github.com/techpro-studio/gohttplib v0.0.3
 	github.com/ttacon/libphonenumber v1.2.1 // indirect
 	github.com/youmark/pkcs8 v0.0.0-20201027041543-1326539a0a0a // indirect
 	go.mongodb.org/mongo-driver v1.13.1
