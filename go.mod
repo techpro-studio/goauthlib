@@ -1,6 +1,6 @@
 module github.com/techpro-studio/goauthlib
 
-go 1.12
+go 1.18
 
 require (
 	github.com/Timothylock/go-signin-with-apple v0.2.0
