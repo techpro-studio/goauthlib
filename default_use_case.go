@@ -23,10 +23,35 @@ type OTPDelivery interface {
 	SendOTP(ctx context.Context, destination, otp string) error
 }
 
+type UseCaseCallback interface {
+	OnCreateUser(user *User)
+	OnUpdateUser(user *User)
+	OnRemoveServiceFrom(user *User)
+}
+
+type DoNothingUseCaseCallback struct {
+}
+
+func (d *DoNothingUseCaseCallback) OnUpdateUser(user *User) {
+}
+
+func NewDoNothingUseCaseCallback() *DoNothingUseCaseCallback {
+	return &DoNothingUseCaseCallback{}
+}
+
+func (d *DoNothingUseCaseCallback) OnCreateUser(user *User) {
+
+}
+
+func (d *DoNothingUseCaseCallback) OnRemoveServiceFrom(user *User) {
+
+}
+
 type DefaultUseCase struct {
 	SocialProviders map[string]oauth.SocialProvider
 	Deliveries      map[string]OTPDelivery
 	repository      Repository
+	callback        UseCaseCallback
 	config          Config
 }
 
@@ -42,8 +67,8 @@ func (useCase *DefaultUseCase) RegisterOTPDelivery(key string, delivery OTPDeliv
 	useCase.Deliveries[key] = delivery
 }
 
-func NewDefaultUseCase(repository Repository, config Config) *DefaultUseCase {
-	return &DefaultUseCase{repository: repository, SocialProviders: map[string]oauth.SocialProvider{}, Deliveries: map[string]OTPDelivery{}, config: config}
+func NewDefaultUseCase(repository Repository, config Config, callback UseCaseCallback) *DefaultUseCase {
+	return &DefaultUseCase{repository: repository, SocialProviders: map[string]oauth.SocialProvider{}, Deliveries: map[string]OTPDelivery{}, config: config, callback: callback}
 }
 
 func (useCase *DefaultUseCase) RegisterSocialProvider(key string, provider oauth.SocialProvider) {
@@ -58,7 +83,9 @@ func (useCase *DefaultUseCase) AuthenticateViaSocialProvider(ctx context.Context
 	usr := useCase.repository.GetForSocial(ctx, result)
 	if usr == nil {
 		usr = useCase.repository.CreateForSocial(ctx, result)
+		useCase.callback.OnCreateUser(usr)
 	} else {
+		useCase.repository.EnsureService(ctx, usr.ID)
 		useCase.appendNewEntitiesFromSocialToUserIfNeed(ctx, usr, result)
 	}
 	useCase.repository.SaveOAuthData(ctx, result)
@@ -69,8 +96,13 @@ func (useCase *DefaultUseCase) appendNewEntitiesFromSocialToUserIfNeed(ctx conte
 	newEntities := useCase.findNewEntitiesInSocialProviderResult(usr.Entities, result)
 	if len(newEntities) > 0 {
 		usr.Entities = append(usr.Entities, newEntities...)
-		useCase.repository.Save(ctx, usr)
+		useCase.saveUser(ctx, usr)
 	}
+}
+
+func (useCase *DefaultUseCase) saveUser(ctx context.Context, user *User) {
+	useCase.repository.Save(ctx, user)
+	useCase.callback.OnUpdateUser(user)
 }
 
 func (useCase *DefaultUseCase) getInfoFromProvider(ctx context.Context, payload SocialProviderPayload) (*oauth.ProviderResult, error) {
@@ -81,21 +113,18 @@ func (useCase *DefaultUseCase) getInfoFromProvider(ctx context.Context, payload 
 	if len(payload.Remaining) > 0 {
 		ctx = context.WithValue(ctx, oauth.SocialProviderRemainingKey, payload.Remaining)
 	}
-	var token string
-	if payload.PayloadType == "token" {
-		token = payload.Payload
-	} else {
-		result, err := provider.ExchangeCode(ctx, payload.Payload)
-		if err != nil {
-			return nil, gohttplib.HTTP400(err.Error())
-		}
-		token = result
-	}
-	result, err := provider.GetInfoByToken(ctx, token)
+
+	result, err := provider.ExchangeCode(ctx, payload.Payload)
 	if err != nil {
 		return nil, gohttplib.HTTP400(err.Error())
 	}
-	return result, nil
+
+	providerResult, err := provider.GetInfoByToken(ctx, result.InfoToken)
+	if err != nil {
+		return nil, gohttplib.HTTP400(err.Error())
+	}
+	providerResult.Tokens = result.Tokens
+	return providerResult, nil
 }
 
 func (useCase *DefaultUseCase) generateResponseFor(usr *User, userInfo map[string]interface{}) (*Response, error) {
@@ -110,13 +139,39 @@ func (useCase *DefaultUseCase) generateResponseFor(usr *User, userInfo map[strin
 	}, nil
 }
 
+func (useCase *DefaultUseCase) VerifyDelete(ctx context.Context, user User, code string) error {
+	verification := useCase.repository.GetVerificationForServiceRemoval(ctx)
+	if verification.Code != code {
+		return gohttplib.HTTP400("code is not equal")
+	}
+	useCase.repository.RemoveService(ctx, user.ID)
+	useCase.callback.OnRemoveServiceFrom(&user)
+	return nil
+}
+
+func (useCase *DefaultUseCase) SendDeleteCode(ctx context.Context, user User) error {
+	errs := []error{}
+	code := fmt.Sprintf("%d", rand.Intn(899999)+100000)
+	delivery := useCase.Deliveries[EntityTypeEmail]
+	useCase.repository.CreateServiceRemovalVerification(ctx, code)
+	for _, entity := range user.Entities {
+		if entity.Type == EntityTypeEmail {
+			err := delivery.SendOTP(ctx, entity.Value, code)
+			if err != nil {
+				errs = append(errs, err)
+			}
+		}
+	}
+	return errors.Join(errs...)
+}
+
 func (useCase *DefaultUseCase) SendCode(ctx context.Context, entity AuthorizationEntity) error {
-	code := fmt.Sprintf("%d", rand.Intn(8999999)+1000000)
+	code := fmt.Sprintf("%d", rand.Intn(899999)+100000)
 	dataDelivery := useCase.Deliveries[entity.Type]
 	if dataDelivery == nil {
 		return gohttplib.HTTP400("type not found")
 	}
-	useCase.repository.CreateVerification(ctx, entity, code)
+	useCase.repository.CreateVerificationForEntity(ctx, entity, code)
 	err := dataDelivery.SendOTP(ctx, entity.Value, code)
 	return err
 }
@@ -124,9 +179,7 @@ func (useCase *DefaultUseCase) SendCode(ctx context.Context, entity Authorizatio
 func (useCase *DefaultUseCase) SendCodeWithUser(ctx context.Context, user User, entity AuthorizationEntity) error {
 	usrAttached := useCase.repository.GetForEntity(ctx, entity)
 	if usrAttached != nil {
-		if usrAttached.ID == user.ID {
-			return entityAlreadyExists
-		} else {
+		if usrAttached.ID != user.ID {
 			return entityHasAlreadyUser
 		}
 	}
@@ -141,6 +194,9 @@ func (useCase *DefaultUseCase) AuthenticateWithCode(ctx context.Context, entity 
 	usr := useCase.repository.GetForEntity(ctx, entity)
 	if usr == nil {
 		usr = useCase.repository.CreateForEntity(ctx, entity)
+		useCase.callback.OnCreateUser(usr)
+	} else {
+		useCase.repository.EnsureService(ctx, usr.ID)
 	}
 	useCase.repository.DeleteVerification(ctx, verification.ID)
 	return useCase.generateResponseFor(usr, nil)
@@ -196,6 +252,7 @@ func (useCase *DefaultUseCase) AddSocialAuthenticationEntity(ctx context.Context
 		}
 	}
 	useCase.appendNewEntitiesFromSocialToUserIfNeed(ctx, user, result)
+	useCase.repository.SaveOAuthData(ctx, result)
 	return user, nil
 }
 
@@ -215,7 +272,7 @@ func (useCase *DefaultUseCase) VerifyAuthenticationEntity(ctx context.Context, u
 	usrEntities := user.Entities
 	usrEntities = append(usrEntities, entity)
 	user.Entities = usrEntities
-	useCase.repository.Save(ctx, user)
+	useCase.saveUser(ctx, user)
 	useCase.repository.DeleteVerification(ctx, verification.ID)
 	return user, nil
 }
@@ -272,7 +329,7 @@ func (useCase *DefaultUseCase) getUserDataFromToken(token string) (map[string]in
 
 	tokenObj, err := jwt.Parse(token, func(token *jwt.Token) (interface{}, error) {
 		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
-			return nil, fmt.Errorf("Unexpected signing method: %v", token.Header["alg"])
+			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
 		}
 		return []byte(useCase.config.sharedSecret), nil
 	})
@@ -283,7 +340,7 @@ func (useCase *DefaultUseCase) getUserDataFromToken(token string) (map[string]in
 	if ok && tokenObj.Valid {
 		return claims, nil
 	}
-	return nil, errors.New("Failed jwt")
+	return nil, errors.New("failed jwt")
 }
 
 func (useCase *DefaultUseCase) generateTokenHash(model User) string {

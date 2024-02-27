@@ -11,6 +11,8 @@ type UseCase interface {
 	RegisterOTPDelivery(key string, delivery OTPDelivery)
 	AuthenticateViaSocialProvider(ctx context.Context, payload SocialProviderPayload) (*Response, error)
 	SendCode(ctx context.Context, entity AuthorizationEntity) error
+	SendDeleteCode(ctx context.Context, user User) error
+	VerifyDelete(ctx context.Context, user User, code string) error
 	GetValidModelFromToken(ctx context.Context, token string) *User
 	AuthenticateWithCode(ctx context.Context, entity AuthorizationEntity, code string) (*Response, error)
 	RemoveAuthenticationEntity(ctx context.Context, user User, entity AuthorizationEntity) error

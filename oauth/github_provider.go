@@ -23,8 +23,12 @@ func NewGithubProvider(config *oauth2.Config) *GithubProvider {
 	return &GithubProvider{oauthConfig: config}
 }
 
-func (provider *GithubProvider) ExchangeCode(ctx context.Context, code string) (string, error) {
+func (provider *GithubProvider) ExchangeCode(ctx context.Context, code string) (*Result, error) {
 	return ExchangeCodeUsingProvider(provider.oauthConfig, ctx, code)
+}
+
+func (provider *GithubProvider) RevokeTokens(ctx context.Context, tokens Tokens) error {
+	return nil
 }
 
 func (provider *GithubProvider) GetInfoByToken(ctx context.Context, token string) (*ProviderResult, error) {

@@ -18,8 +18,12 @@ type FacebookProvider struct {
 	oauthConfig             *oauth2.Config
 }
 
-func (provider *FacebookProvider) ExchangeCode(ctx context.Context, code string) (string, error) {
+func (provider *FacebookProvider) ExchangeCode(ctx context.Context, code string) (*Result, error) {
 	return ExchangeCodeUsingProvider(provider.oauthConfig, ctx, code)
+}
+
+func (provider *FacebookProvider) RevokeTokens(ctx context.Context, tokens Tokens) error {
+	return nil
 }
 
 func (provider *FacebookProvider) GetOAuthConfig() *oauth2.Config {

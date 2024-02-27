@@ -5,6 +5,7 @@ import (
 	"github.com/techpro-studio/goauthlib"
 	"github.com/techpro-studio/goauthlib/oauth"
 	"github.com/techpro-studio/gohttplib/utils"
+	"github.com/techpro-studio/gomongo"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
@@ -38,7 +39,7 @@ func (repo *Repository) GetVerificationForEntity(ctx context.Context, entity goa
 	return repo.getOneVerification(ctx, bson.M{"destination": entity.Value, "destination_type": entity.Type})
 }
 
-func (repo *Repository) CreateVerification(ctx context.Context, entity goauthlib.AuthorizationEntity, verificationCode string) {
+func (repo *Repository) CreateVerificationForEntity(ctx context.Context, entity goauthlib.AuthorizationEntity, verificationCode string) {
 	q := bson.M{"destination": entity.Value, "destination_type": entity.Type}
 	u := bson.M{
 		"$set": bson.M{
@@ -46,6 +47,26 @@ func (repo *Repository) CreateVerification(ctx context.Context, entity goauthlib
 			"destination_type": entity.Type,
 			"timestamp":        time.Now().Unix(),
 			"code":             verificationCode,
+		},
+	}
+	yes := true
+	_, err := repo.Client.Database(dbName).Collection(verificationCollection).UpdateOne(ctx, q, u, &options.UpdateOptions{Upsert: &yes})
+	if err != nil {
+		panic(err)
+	}
+}
+
+func (repo *Repository) GetVerificationForServiceRemoval(ctx context.Context) *goauthlib.Verification {
+	return repo.getOneVerification(ctx, bson.M{"removal": repo.service})
+}
+
+func (repo *Repository) CreateServiceRemovalVerification(ctx context.Context, verificationCode string) {
+	q := bson.M{"removal": repo.service}
+	u := bson.M{
+		"$set": bson.M{
+			"removal":   repo.service,
+			"timestamp": time.Now().Unix(),
+			"code":      verificationCode,
 		},
 	}
 	yes := true
@@ -63,15 +84,34 @@ func (repo *Repository) GetForSocial(ctx context.Context, result *oauth.Provider
 	if result.Phone != "" {
 		or = append(or, bson.M{"entities.type": goauthlib.EntityTypePhone, "entities.value": result.Phone})
 	}
-	return repo.getOneUser(ctx, bson.M{"$or": or})
+	return repo.getOneUser(ctx, bson.M{"$or": or}, false)
 }
 
 func (repo *Repository) SaveOAuthData(ctx context.Context, result *oauth.ProviderResult) {
 	upsert := true
-	_, err := repo.Client.Database(dbName).Collection(oauthDataCollection).UpdateOne(ctx, map[string]interface{}{"type": result.Type, "provider_id": result.ID}, map[string]interface{}{"$set": map[string]interface{}{"data": result.Raw}}, &options.UpdateOptions{Upsert: &upsert})
+	_, err := repo.Client.Database(dbName).Collection(oauthDataCollection).UpdateOne(ctx, map[string]interface{}{"type": result.Type, "provider_id": result.ID, "service": repo.service}, map[string]interface{}{"$set": map[string]interface{}{"data": result.Raw, "tokens": result.Tokens}}, &options.UpdateOptions{Upsert: &upsert})
 	if err != nil {
 		panic(err)
 	}
+}
+
+func (repo *Repository) GetTokensFor(ctx context.Context, entity *goauthlib.AuthorizationEntity) (*oauth.Tokens, error) {
+	dbResult := repo.Client.Database(dbName).Collection(oauthDataCollection).FindOne(ctx, map[string]interface{}{"type": entity.Type, "provider_id": entity.Value, "service": repo.service})
+	var result map[string]any
+	err := dbResult.Decode(&result)
+	if err != nil {
+		if err.Error() != notFoundDocumentError {
+			return nil, err
+		}
+		return nil, nil
+	}
+	if result["tokens"] == nil {
+		return nil, nil
+	}
+	return &oauth.Tokens{
+		Access:  result["tokens"].(map[string]string)["access"],
+		Refresh: result["tokens"].(map[string]string)["refresh"],
+	}, err
 }
 
 func (repo *Repository) CreateForSocial(ctx context.Context, result *oauth.ProviderResult) *goauthlib.User {
@@ -100,7 +140,7 @@ func (repo *Repository) CreateForSocial(ctx context.Context, result *oauth.Provi
 	return toDomainUser(&mongoUser)
 }
 
-func (repo *Repository) getOneUser(ctx context.Context, query bson.M) *goauthlib.User {
+func (repo *Repository) getOneUser(ctx context.Context, query bson.M, nullIfNoService bool) *goauthlib.User {
 	res := repo.Client.Database(dbName).Collection(userCollection).FindOne(ctx, query)
 	var mongoUser mongoUser
 	err := res.Decode(&mongoUser)
@@ -110,8 +150,8 @@ func (repo *Repository) getOneUser(ctx context.Context, query bson.M) *goauthlib
 		}
 		return nil
 	}
-	if !utils.ContainsString(mongoUser.Services, repo.service) {
-		repo.ensureService(ctx, mongoUser.ID)
+	if !utils.ContainsString(mongoUser.Services, repo.service) && nullIfNoService {
+		return nil
 	}
 	return toDomainUser(&mongoUser)
 }
@@ -130,7 +170,7 @@ func (repo *Repository) getOneVerification(ctx context.Context, query bson.M) *g
 }
 
 func (repo *Repository) GetForEntity(ctx context.Context, entity goauthlib.AuthorizationEntity) *goauthlib.User {
-	return repo.getOneUser(ctx, bson.M{"entities.type": entity.Type, "entities.value": entity.Value})
+	return repo.getOneUser(ctx, bson.M{"entities.type": entity.Type, "entities.value": entity.Value}, false)
 }
 
 func (repo *Repository) CreateForEntity(ctx context.Context, entity goauthlib.AuthorizationEntity) *goauthlib.User {
@@ -145,6 +185,20 @@ func (repo *Repository) CreateForEntity(ctx context.Context, entity goauthlib.Au
 		panic(err)
 	}
 	return toDomainUser(&mongoUser)
+}
+
+func (repo *Repository) RemoveService(ctx context.Context, id string) {
+	_, err := repo.Client.
+		Database(dbName).
+		Collection(userCollection).
+		UpdateOne(ctx, bson.M{"_id": id}, bson.M{"$pull": bson.M{"services": repo.service}}, nil)
+	if err != nil {
+		panic(err)
+	}
+}
+
+func (repo *Repository) EnsureService(ctx context.Context, id string) {
+	repo.ensureService(ctx, *gomongo.StrToObjId(&id))
 }
 
 func (repo *Repository) ensureService(ctx context.Context, userId primitive.ObjectID) {
@@ -162,7 +216,7 @@ func (repo *Repository) Save(ctx context.Context, model *goauthlib.User) {
 	_, err := repo.Client.
 		Database(dbName).
 		Collection(userCollection).
-		UpdateOne(ctx, bson.M{"_id": mongoUser.ID}, bson.M{"$set": bson.M{"entities": mongoUser.Entities, "info": mongoUser.Info}, "$addToSet": bson.M{"services": repo.service}}, nil)
+		UpdateOne(ctx, bson.M{"_id": mongoUser.ID}, bson.M{"$set": bson.M{"entities": mongoUser.Entities, "info": mongoUser.Info}}, nil)
 	if err != nil {
 		panic(err)
 	}
@@ -173,5 +227,5 @@ func (repo *Repository) GetById(ctx context.Context, id string) *goauthlib.User 
 	if err != nil {
 		panic(err)
 	}
-	return repo.getOneUser(ctx, bson.M{"_id": objectID})
+	return repo.getOneUser(ctx, bson.M{"_id": objectID}, true)
 }

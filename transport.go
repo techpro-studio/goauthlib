@@ -70,6 +70,28 @@ func (t *Transport) SendCodeHandler(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+func (t *Transport) SendDeleteCodeHandler(writer http.ResponseWriter, request *http.Request) {
+	usr := GetUserFromRequestWithPanic(request)
+	err := t.useCase.SendDeleteCode(request.Context(), usr)
+	gohttplib.WriteJsonOrError(writer, OK, 200, err)
+}
+
+func (t *Transport) VerifyDeleteHandler(writer http.ResponseWriter, request *http.Request) {
+	usr := GetUserFromRequestWithPanic(request)
+	body, err := gohttplib.GetBody(request)
+	if err != nil {
+		gohttplib.SafeConvertToServerError(err).Write(writer)
+		return
+	}
+	code, err := GetCode(body)
+	if err != nil {
+		gohttplib.SafeConvertToServerError(err).Write(writer)
+		return
+	}
+	err = t.useCase.VerifyDelete(request.Context(), usr, code)
+	gohttplib.WriteJsonOrError(writer, OK, 200, err)
+}
+
 func (t *Transport) AuthenticateWithCodeHandler(w http.ResponseWriter, r *http.Request) {
 	t.withAuthorizationEntityAndCode(w, r, func(entity AuthorizationEntity, code string) (i interface{}, e error) {
 		return t.useCase.AuthenticateWithCode(r.Context(), entity, code)

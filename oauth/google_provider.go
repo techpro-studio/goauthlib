@@ -13,6 +13,10 @@ type GoogleProvider struct {
 	oauthConfig *oauth2.Config
 }
 
+func (provider *GoogleProvider) RevokeTokens(ctx context.Context, tokens Tokens) error {
+	return nil
+}
+
 func (provider *GoogleProvider) GetOAuthConfig() *oauth2.Config {
 	return provider.oauthConfig
 }
@@ -21,7 +25,7 @@ func NewGoogleProvider(config *oauth2.Config) *GoogleProvider {
 	return &GoogleProvider{oauthConfig: config}
 }
 
-func (provider *GoogleProvider) ExchangeCode(ctx context.Context, code string) (string, error) {
+func (provider *GoogleProvider) ExchangeCode(ctx context.Context, code string) (*Result, error) {
 	return ExchangeCodeUsingProvider(provider.oauthConfig, ctx, code)
 }
 
