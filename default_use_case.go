@@ -32,18 +32,18 @@ type UseCaseCallback interface {
 type DoNothingUseCaseCallback struct {
 }
 
-func (d *DoNothingUseCaseCallback) OnUpdateUser(user *User) {
+func (d *DoNothingUseCaseCallback) OnUpdateUser(ctx context.Context, user *User) {
 }
 
 func NewDoNothingUseCaseCallback() *DoNothingUseCaseCallback {
 	return &DoNothingUseCaseCallback{}
 }
 
-func (d *DoNothingUseCaseCallback) OnCreateUser(user *User) {
+func (d *DoNothingUseCaseCallback) OnCreateUser(ctx context.Context, user *User) {
 
 }
 
-func (d *DoNothingUseCaseCallback) OnRemoveServiceFrom(user *User) {
+func (d *DoNothingUseCaseCallback) OnRemoveServiceFrom(ctx context.Context, user *User) {
 
 }
 
