@@ -20,4 +20,5 @@ type Repository interface {
 	DeleteVerification(ctx context.Context, id string)
 	GetById(ctx context.Context, id string) *User
 	SaveOAuthData(ctx context.Context, result *oauth.ProviderResult)
+	GetTokensFor(ctx context.Context, entity *AuthorizationEntity) (*oauth.Tokens, error)
 }
