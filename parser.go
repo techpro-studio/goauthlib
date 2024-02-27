@@ -28,10 +28,9 @@ func MakeSocialProviderVMap() validator.VMap {
 }
 
 type SocialProviderPayload struct {
-	Provider    string
-	PayloadType string
-	Payload     string
-	Remaining   map[string]interface{}
+	Provider  string
+	Payload   string
+	Remaining map[string]interface{}
 }
 
 func GetSocialProviderPayloadInfo(body map[string]interface{}) (*SocialProviderPayload, error) {
@@ -41,15 +40,14 @@ func GetSocialProviderPayloadInfo(body map[string]interface{}) (*SocialProviderP
 	}
 	remaining := map[string]interface{}{}
 	for key, value := range body {
-		if key != "provider" && key != "payload" && key != "payload_type" {
+		if key != "provider" && key != "payload" {
 			remaining[key] = value
 		}
 	}
 	result := SocialProviderPayload{
-		Provider:    validated["provider"].(string),
-		Payload:     validated["payload"].(string),
-		PayloadType: validated["payload_type"].(string),
-		Remaining:   remaining,
+		Provider:  validated["provider"].(string),
+		Payload:   validated["payload"].(string),
+		Remaining: remaining,
 	}
 	return &result, nil
 }

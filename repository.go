@@ -14,8 +14,8 @@ type Repository interface {
 	CreateForSocial(ctx context.Context, result *oauth.ProviderResult) *User
 	Save(ctx context.Context, model *User)
 	GetVerificationForEntity(ctx context.Context, entity AuthorizationEntity) *Verification
-	GetVerificationForServiceRemoval(ctx context.Context) *Verification
-	CreateServiceRemovalVerification(ctx context.Context, verificationCode string)
+	GetServiceActionVerification(ctx context.Context, action string) *Verification
+	CreateServiceActionVerification(ctx context.Context, action, verificationCode string)
 	CreateVerificationForEntity(ctx context.Context, entity AuthorizationEntity, verificationCode string)
 	DeleteVerification(ctx context.Context, id string)
 	GetById(ctx context.Context, id string) *User

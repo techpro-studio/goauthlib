@@ -140,7 +140,7 @@ func (useCase *DefaultUseCase) generateResponseFor(usr *User, userInfo map[strin
 }
 
 func (useCase *DefaultUseCase) VerifyDelete(ctx context.Context, user User, code string) error {
-	verification := useCase.repository.GetVerificationForServiceRemoval(ctx)
+	verification := useCase.repository.GetServiceActionVerification(ctx, deleteAccountAction)
 	if verification.Code != code {
 		return gohttplib.HTTP400("code is not equal")
 	}
@@ -158,11 +158,11 @@ func (useCase *DefaultUseCase) VerifyDelete(ctx context.Context, user User, code
 	return nil
 }
 
-func (useCase *DefaultUseCase) SendDeleteCode(ctx context.Context, user User) error {
+func (useCase *DefaultUseCase) SendVerificationCode(ctx context.Context, user User, action string) error {
 	errs := []error{}
 	code := fmt.Sprintf("%d", rand.Intn(899999)+100000)
 	delivery := useCase.Deliveries[EntityTypeEmail]
-	useCase.repository.CreateServiceRemovalVerification(ctx, code)
+	useCase.repository.CreateServiceActionVerification(ctx, action, code)
 	for _, entity := range user.Entities {
 		if entity.Type == EntityTypeEmail {
 			err := delivery.SendOTP(ctx, entity.Value, code)

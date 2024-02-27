@@ -70,9 +70,9 @@ func (t *Transport) SendCodeHandler(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-func (t *Transport) SendDeleteCodeHandler(writer http.ResponseWriter, request *http.Request) {
+func (t *Transport) SendVerificationCodeHandler(writer http.ResponseWriter, request *http.Request) {
 	usr := GetUserFromRequestWithPanic(request)
-	err := t.useCase.SendDeleteCode(request.Context(), usr)
+	err := t.useCase.SendVerificationCode(request.Context(), usr, deleteAccountAction)
 	gohttplib.WriteJsonOrError(writer, OK, 200, err)
 }
 

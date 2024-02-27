@@ -83,7 +83,10 @@ func (provider *AppleProvider) GetInfoByToken(ctx context.Context, infoToken str
 	if err != nil {
 		return nil, gohttplib.HTTP400(err.Error())
 	}
-	email := (*claim)["email"].(string)
+	email := ""
+	if emailParsed, ok := (*claim)["email"].(string); ok {
+		email = emailParsed
+	}
 	result := ProviderResult{
 		ID:    id,
 		Type:  EntityTypeOAuthApple,

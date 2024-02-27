@@ -36,7 +36,7 @@ func NewRepository(client *mongo.Client, service string) *Repository {
 }
 
 func (repo *Repository) GetVerificationForEntity(ctx context.Context, entity goauthlib.AuthorizationEntity) *goauthlib.Verification {
-	return repo.getOneVerification(ctx, bson.M{"destination": entity.Value, "destination_type": entity.Type})
+	return repo.getOneVerification(ctx, bson.M{"destination": entity.Value, "destination_type": entity.Type, "service": repo.service})
 }
 
 func (repo *Repository) CreateVerificationForEntity(ctx context.Context, entity goauthlib.AuthorizationEntity, verificationCode string) {
@@ -47,6 +47,7 @@ func (repo *Repository) CreateVerificationForEntity(ctx context.Context, entity 
 			"destination_type": entity.Type,
 			"timestamp":        time.Now().Unix(),
 			"code":             verificationCode,
+			"service":          repo.service,
 		},
 	}
 	yes := true
@@ -56,17 +57,18 @@ func (repo *Repository) CreateVerificationForEntity(ctx context.Context, entity 
 	}
 }
 
-func (repo *Repository) GetVerificationForServiceRemoval(ctx context.Context) *goauthlib.Verification {
-	return repo.getOneVerification(ctx, bson.M{"removal": repo.service})
+func (repo *Repository) GetServiceActionVerification(ctx context.Context, action string) *goauthlib.Verification {
+	return repo.getOneVerification(ctx, bson.M{"action": action, "service": repo.service})
 }
 
-func (repo *Repository) CreateServiceRemovalVerification(ctx context.Context, verificationCode string) {
+func (repo *Repository) CreateServiceActionVerification(ctx context.Context, action, verificationCode string) {
 	q := bson.M{"removal": repo.service}
 	u := bson.M{
 		"$set": bson.M{
-			"removal":   repo.service,
+			"action":    action,
 			"timestamp": time.Now().Unix(),
 			"code":      verificationCode,
+			"service":   repo.service,
 		},
 	}
 	yes := true
@@ -109,8 +111,8 @@ func (repo *Repository) GetTokensFor(ctx context.Context, entity *goauthlib.Auth
 		return nil, nil
 	}
 	return &oauth.Tokens{
-		Access:  result["tokens"].(map[string]string)["access"],
-		Refresh: result["tokens"].(map[string]string)["refresh"],
+		Access:  result["tokens"].(map[string]any)["access"].(string),
+		Refresh: result["tokens"].(map[string]any)["refresh"].(string),
 	}, err
 }
 
@@ -191,7 +193,7 @@ func (repo *Repository) RemoveService(ctx context.Context, id string) {
 	_, err := repo.Client.
 		Database(dbName).
 		Collection(userCollection).
-		UpdateOne(ctx, bson.M{"_id": id}, bson.M{"$pull": bson.M{"services": repo.service}}, nil)
+		UpdateOne(ctx, bson.M{"_id": *gomongo.StrToObjId(&id)}, bson.M{"$pull": bson.M{"services": repo.service}}, nil)
 	if err != nil {
 		panic(err)
 	}
