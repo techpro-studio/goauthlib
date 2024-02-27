@@ -24,9 +24,9 @@ type OTPDelivery interface {
 }
 
 type UseCaseCallback interface {
-	OnCreateUser(user *User)
-	OnUpdateUser(user *User)
-	OnRemoveServiceFrom(user *User)
+	OnCreateUser(ctx context.Context, user *User)
+	OnUpdateUser(ctx context.Context, user *User)
+	OnRemoveServiceFrom(ctx context.Context, user *User)
 }
 
 type DoNothingUseCaseCallback struct {
@@ -83,7 +83,7 @@ func (useCase *DefaultUseCase) AuthenticateViaSocialProvider(ctx context.Context
 	usr := useCase.repository.GetForSocial(ctx, result)
 	if usr == nil {
 		usr = useCase.repository.CreateForSocial(ctx, result)
-		useCase.callback.OnCreateUser(usr)
+		useCase.callback.OnCreateUser(ctx, usr)
 	} else {
 		useCase.repository.EnsureService(ctx, usr.ID)
 		useCase.appendNewEntitiesFromSocialToUserIfNeed(ctx, usr, result)
@@ -102,7 +102,7 @@ func (useCase *DefaultUseCase) appendNewEntitiesFromSocialToUserIfNeed(ctx conte
 
 func (useCase *DefaultUseCase) saveUser(ctx context.Context, user *User) {
 	useCase.repository.Save(ctx, user)
-	useCase.callback.OnUpdateUser(user)
+	useCase.callback.OnUpdateUser(ctx, user)
 }
 
 func (useCase *DefaultUseCase) getInfoFromProvider(ctx context.Context, payload SocialProviderPayload) (*oauth.ProviderResult, error) {
@@ -154,7 +154,7 @@ func (useCase *DefaultUseCase) VerifyDelete(ctx context.Context, user User, code
 			}
 		}
 	}
-	useCase.callback.OnRemoveServiceFrom(&user)
+	useCase.callback.OnRemoveServiceFrom(ctx, &user)
 	return nil
 }
 
@@ -203,7 +203,7 @@ func (useCase *DefaultUseCase) AuthenticateWithCode(ctx context.Context, entity 
 	usr := useCase.repository.GetForEntity(ctx, entity)
 	if usr == nil {
 		usr = useCase.repository.CreateForEntity(ctx, entity)
-		useCase.callback.OnCreateUser(usr)
+		useCase.callback.OnCreateUser(ctx, usr)
 	} else {
 		useCase.repository.EnsureService(ctx, usr.ID)
 	}
