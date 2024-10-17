@@ -208,7 +208,7 @@ func (useCase *DefaultUseCase) AuthenticateWithCode(ctx context.Context, entity 
 		useCase.repository.EnsureService(ctx, usr.ID)
 	}
 	useCase.repository.DeleteVerification(ctx, verification.ID)
-	return useCase.generateResponseFor(usr, nil)
+	return useCase.generateResponseFor(usr, usr.Info)
 }
 
 func (useCase *DefaultUseCase) getVerificationAndCompare(ctx context.Context, entity AuthorizationEntity, code string) (*Verification, error) {
@@ -358,13 +358,13 @@ func (useCase *DefaultUseCase) generateTokenHash(model User) string {
 
 func (useCase *DefaultUseCase) generateTokenFromModel(model User) (string, error) {
 	hash := useCase.generateTokenHash(model)
+
 	claims := struct {
-		ID   string `json:"id"`
 		Hash string `json:"hash"`
+		User User   `json:"user"`
 		jwt.StandardClaims
-	}{
-		model.ID,
-		hash,
+	}{hash,
+		model,
 		jwt.StandardClaims{
 			Issuer: "auth",
 		},
