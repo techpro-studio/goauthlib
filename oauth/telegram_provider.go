@@ -5,6 +5,7 @@ import (
 	"crypto/hmac"
 	"crypto/sha256"
 	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"log"
@@ -19,6 +20,18 @@ type TelegramProvider struct {
 
 func NewTelegramProvider(botToken string) *TelegramProvider {
 	return &TelegramProvider{botToken: botToken}
+}
+
+func computeHmacSha256(key []byte, message []byte) []byte {
+	h := hmac.New(sha256.New, key)
+	h.Write(message)
+	return h.Sum(nil)
+}
+
+// isJSONString checks if a string is a valid JSON string.
+func isJSONString(s string) bool {
+	var js json.RawMessage
+	return json.Unmarshal([]byte(s), &js) == nil
 }
 
 func VerifyTelegramData(values url.Values, botToken string) error {
@@ -52,11 +65,21 @@ func VerifyTelegramData(values url.Values, botToken string) error {
 	}
 	dataCheckString := strings.Join(dataCheckStrings, "\n")
 
-	// Compute the secret key as SHA256 hash of the bot token
-	secretKey := sha256.Sum256([]byte(botToken))
+	var secretKey []byte
+
+	// If 'user' parameter exists and is a JSON string, it's from WebAppData
+	userValue := valuesCopy.Get("user")
+	if userValue != "" && isJSONString(userValue) {
+		// Compute secret key for WebAppData
+		secretKey = computeHmacSha256([]byte("WebAppData"), []byte(botToken))
+	} else {
+		// Compute secret key as SHA256 hash of the bot token
+		sum := sha256.Sum256([]byte(botToken))
+		secretKey = sum[:]
+	}
 
 	// Compute HMAC-SHA256 of the data check string using the secret key
-	hmacHash := hmac.New(sha256.New, secretKey[:])
+	hmacHash := hmac.New(sha256.New, secretKey)
 	hmacHash.Write([]byte(dataCheckString))
 	computedHash := hmacHash.Sum(nil)
 
