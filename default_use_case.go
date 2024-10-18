@@ -324,7 +324,7 @@ func (useCase *DefaultUseCase) GetValidModelFromToken(ctx context.Context, token
 	if err != nil {
 		return nil
 	}
-	model := useCase.repository.GetById(ctx, userData["id"].(string))
+	model := useCase.repository.GetById(ctx, userData["user"].(map[string]any)["id"].(string))
 	if model == nil {
 		return nil
 	}
