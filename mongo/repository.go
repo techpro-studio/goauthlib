@@ -134,6 +134,7 @@ func (repo *Repository) CreateForSocial(ctx context.Context, result *oauth.Provi
 		ID:       primitive.NewObjectID(),
 		Entities: entities,
 		Services: []string{repo.service},
+		Info:     nil,
 	}
 	_, err := repo.Client.Database(dbName).Collection(userCollection).InsertOne(ctx, mongoUser)
 	if err != nil {

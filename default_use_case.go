@@ -24,7 +24,7 @@ type OTPDelivery interface {
 }
 
 type UseCaseCallback interface {
-	OnCreateUser(ctx context.Context, user *User)
+	OnCreateUser(ctx context.Context, user *User, provider *oauth.ProviderResult)
 	OnUpdateUser(ctx context.Context, user *User)
 	OnRemoveServiceFrom(ctx context.Context, user *User)
 }
@@ -32,7 +32,7 @@ type UseCaseCallback interface {
 type DoNothingUseCaseCallback struct {
 }
 
-func (d *DoNothingUseCaseCallback) OnUpdateUser(ctx context.Context, user *User) {
+func (d *DoNothingUseCaseCallback) OnUpdateUser(ctx context.Context, user *User, result oauth.ProviderResult) {
 }
 
 func NewDoNothingUseCaseCallback() *DoNothingUseCaseCallback {
@@ -83,7 +83,7 @@ func (useCase *DefaultUseCase) AuthenticateViaSocialProvider(ctx context.Context
 	usr := useCase.repository.GetForSocial(ctx, result)
 	if usr == nil {
 		usr = useCase.repository.CreateForSocial(ctx, result)
-		useCase.callback.OnCreateUser(ctx, usr)
+		useCase.callback.OnCreateUser(ctx, usr, result)
 	} else {
 		useCase.repository.EnsureService(ctx, usr.ID)
 		useCase.appendNewEntitiesFromSocialToUserIfNeed(ctx, usr, result)
@@ -203,7 +203,7 @@ func (useCase *DefaultUseCase) AuthenticateWithCode(ctx context.Context, entity 
 	usr := useCase.repository.GetForEntity(ctx, entity)
 	if usr == nil {
 		usr = useCase.repository.CreateForEntity(ctx, entity)
-		useCase.callback.OnCreateUser(ctx, usr)
+		useCase.callback.OnCreateUser(ctx, usr, nil)
 	} else {
 		useCase.repository.EnsureService(ctx, usr.ID)
 	}

@@ -11,6 +11,7 @@ import (
 	"log"
 	"net/url"
 	"sort"
+	"strconv"
 	"strings"
 )
 
@@ -107,6 +108,32 @@ func (t *TelegramProvider) GetInfoByToken(ctx context.Context, infoToken string)
 		return nil, err
 	}
 
+	var firstName string
+	var lastName string
+	var userName string
+	var id string
+	user := params.Get("user")
+	const kFirstName = "first_name"
+	const kId = "id"
+	const kLastName = "last_name"
+	const kUserName = "username"
+	if user == "" {
+		id = params.Get(kId)
+		firstName = params.Get(kFirstName)
+		lastName = params.Get(kLastName)
+		userName = params.Get(kUserName)
+	} else {
+		var usr map[string]any
+		err := json.Unmarshal([]byte(user), &usr)
+		if err != nil {
+			return nil, err
+		}
+		firstName = usr[kFirstName].(string)
+		lastName = usr[kLastName].(string)
+		userName = usr[kUserName].(string)
+		id = strconv.Itoa(int(usr[kId].(float64)))
+	}
+
 	err = VerifyTelegramData(params, t.botToken)
 
 	if err != nil {
@@ -114,14 +141,14 @@ func (t *TelegramProvider) GetInfoByToken(ctx context.Context, infoToken string)
 	}
 
 	return &ProviderResult{
-		ID:    params.Get("id"),
+		ID:    id,
 		Type:  "telegram",
 		Email: "",
 		Phone: "",
 		Raw: map[string]interface{}{
-			"first_name": params.Get("first_name"),
-			"last_name":  params.Get("last_name"),
-			"username":   params.Get("username"),
+			kFirstName:                      firstName,
+			kLastName:                       lastName,
+			fmt.Sprintf("tg_%s", kUserName): userName,
 		},
 	}, nil
 }
