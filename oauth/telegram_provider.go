@@ -97,6 +97,13 @@ func VerifyTelegramData(values url.Values, botToken string) error {
 	}
 }
 
+func getStringSafe(m map[string]interface{}, key string) string {
+	if value, ok := m[key].(string); ok {
+		return value
+	}
+	return "" // or a default value
+}
+
 func (t *TelegramProvider) GetInfoByToken(ctx context.Context, infoToken string) (*ProviderResult, error) {
 
 	if strings.HasPrefix(infoToken, "?") {
@@ -128,9 +135,9 @@ func (t *TelegramProvider) GetInfoByToken(ctx context.Context, infoToken string)
 		if err != nil {
 			return nil, err
 		}
-		firstName = usr[kFirstName].(string)
-		lastName = usr[kLastName].(string)
-		userName = usr[kUserName].(string)
+		firstName = getStringSafe(usr, kFirstName)
+		lastName = getStringSafe(usr, kLastName)
+		userName = getStringSafe(usr, kUserName)
 		id = strconv.Itoa(int(usr[kId].(float64)))
 	}
 
