@@ -113,13 +113,25 @@ func (useCase *DefaultUseCase) getInfoFromProvider(ctx context.Context, payload 
 	if len(payload.Remaining) > 0 {
 		ctx = context.WithValue(ctx, oauth.SocialProviderRemainingKey, payload.Remaining)
 	}
-
-	result, err := provider.ExchangeCode(ctx, payload.Payload)
-	if err != nil {
-		return nil, gohttplib.HTTP400(err.Error())
+	var result oauth.Result
+	var infoToken string
+	if payload.PayloadType == "code" {
+		res, err := provider.ExchangeCode(ctx, payload.Payload)
+		if err != nil {
+			return nil, gohttplib.HTTP400(err.Error())
+		}
+		result = *res
+		infoToken = result.InfoToken
+	} else {
+		result = oauth.Result{
+			Tokens: oauth.Tokens{
+				Access: payload.Payload,
+			},
+		}
+		infoToken = payload.Payload
 	}
 
-	providerResult, err := provider.GetInfoByToken(ctx, result.InfoToken)
+	providerResult, err := provider.GetInfoByToken(ctx, infoToken)
 	if err != nil {
 		return nil, gohttplib.HTTP400(err.Error())
 	}
