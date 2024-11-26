@@ -13,6 +13,7 @@ type AppleProvider struct {
 	Key      string
 	ClientId string
 	TeamId   string
+	Web      bool
 }
 
 func (provider *AppleProvider) RevokeTokens(ctx context.Context, tokens Tokens) error {
@@ -42,22 +43,39 @@ func (provider *AppleProvider) RevokeTokens(ctx context.Context, tokens Tokens) 
 
 func (provider *AppleProvider) ExchangeCode(ctx context.Context, code string) (*Result, error) {
 	clientId := provider.ClientId
+	var redirect *string
+	remaining, remainingOk := ctx.Value(SocialProviderRemainingKey).(map[string]any)
+	if remainingOk {
+		redirectUri, redirectOk := remaining["redirect_uri"].(string)
+		if redirectOk {
+			redirect = &redirectUri
+		}
+	}
+
 	secret, err := apple.GenerateClientSecret(provider.Key, provider.TeamId, clientId, provider.KeyId)
 	if err != nil {
 		return nil, gohttplib.HTTP400(err.Error())
 	}
 	client := apple.New()
 
-	vReq := apple.AppValidationTokenRequest{
-		ClientID:     clientId,
-		ClientSecret: secret,
-		Code:         code,
-	}
 	var resp apple.ValidationResponse
-
 	// Do the verification
-
-	err = client.VerifyAppToken(ctx, vReq, &resp)
+	if redirect != nil {
+		err = client.VerifyWebToken(ctx, apple.WebValidationTokenRequest{
+			ClientID:     provider.ClientId,
+			ClientSecret: secret,
+			Code:         code,
+			RedirectURI:  *redirect,
+		}, &resp,
+		)
+	} else {
+		err = client.VerifyAppToken(ctx, apple.AppValidationTokenRequest{
+			ClientID:     provider.ClientId,
+			ClientSecret: secret,
+			Code:         code,
+		}, &resp,
+		)
+	}
 	if err != nil {
 		return nil, gohttplib.HTTP400(err.Error())
 	}
