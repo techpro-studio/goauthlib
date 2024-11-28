@@ -9,6 +9,7 @@ type mongoUser struct {
 	ID       primitive.ObjectID         `bson:"_id"`
 	Entities []mongoAuthorizationEntity `bson:"entities"`
 	Info     map[string]any             `bson:"info"`
+	Deleted  bool                       `bson:"deleted"`
 	Services []string                   `bson:"services"`
 }
 

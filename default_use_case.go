@@ -12,21 +12,26 @@ import (
 )
 
 type Config struct {
-	sharedSecret string
+	sharedSecret               string
+	softDeleteUserIfNoServices bool
 }
 
-func NewConfig(sharedSecret string) *Config {
-	return &Config{sharedSecret: sharedSecret}
+func NewConfig(sharedSecret string, softDeleteUserIfNoServices bool) *Config {
+	return &Config{sharedSecret: sharedSecret, softDeleteUserIfNoServices: softDeleteUserIfNoServices}
 }
 
 type OTPDelivery interface {
 	SendOTP(ctx context.Context, destination, otp string) error
 }
 
-type UseCaseCallback interface {
+type UserCaseCallback interface {
+	RemoveServiceCallback
 	OnCreateUser(ctx context.Context, user *User, provider *oauth.ProviderResult)
 	OnUpdateUser(ctx context.Context, user *User)
-	OnRemoveServiceFrom(ctx context.Context, user *User)
+}
+
+type RemoveServiceCallback interface {
+	OnRemoveServiceFrom(ctx context.Context, user *User) error
 }
 
 type DoNothingUseCaseCallback struct {
@@ -51,7 +56,7 @@ type DefaultUseCase struct {
 	SocialProviders map[string]oauth.SocialProvider
 	Deliveries      map[string]OTPDelivery
 	repository      Repository
-	callback        UseCaseCallback
+	callback        UserCaseCallback
 	config          Config
 }
 
@@ -67,7 +72,7 @@ func (useCase *DefaultUseCase) RegisterOTPDelivery(key string, delivery OTPDeliv
 	useCase.Deliveries[key] = delivery
 }
 
-func NewDefaultUseCase(repository Repository, config Config, callback UseCaseCallback) *DefaultUseCase {
+func NewDefaultUseCase(repository Repository, config Config, callback UserCaseCallback) *DefaultUseCase {
 	return &DefaultUseCase{repository: repository, SocialProviders: map[string]oauth.SocialProvider{}, Deliveries: map[string]OTPDelivery{}, config: config, callback: callback}
 }
 
@@ -160,7 +165,9 @@ func (useCase *DefaultUseCase) VerifyDelete(ctx context.Context, user User, code
 }
 
 func (useCase *DefaultUseCase) ForceDelete(ctx context.Context, user User) error {
-	useCase.repository.RemoveService(ctx, user.ID)
+	useCase.repository.RemoveService(ctx, user.ID, useCase.config.softDeleteUserIfNoServices, func(ctx context.Context, userId string) error {
+		return useCase.callback.OnRemoveServiceFrom(ctx, &user)
+	})
 	for _, entity := range user.Entities {
 		provider := useCase.SocialProviders[entity.Type]
 		if provider != nil {
@@ -170,7 +177,7 @@ func (useCase *DefaultUseCase) ForceDelete(ctx context.Context, user User) error
 			}
 		}
 	}
-	useCase.callback.OnRemoveServiceFrom(ctx, &user)
+
 	return nil
 }
 

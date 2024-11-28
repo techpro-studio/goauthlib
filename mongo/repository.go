@@ -20,6 +20,11 @@ type Repository struct {
 	service string
 }
 
+func (repo *Repository) SoftDeleteUser(ctx context.Context, id primitive.ObjectID) error {
+	_, err := repo.Client.Database(dbName).Collection(userCollection).UpdateOne(ctx, bson.M{"_id": id}, bson.M{"$set": bson.M{"deleted": true}})
+	return err
+}
+
 func (repo *Repository) DeleteVerification(ctx context.Context, id string) {
 	objId, err := primitive.ObjectIDFromHex(id)
 	if err != nil {
@@ -144,7 +149,19 @@ func (repo *Repository) CreateForSocial(ctx context.Context, result *oauth.Provi
 }
 
 func (repo *Repository) getOneUser(ctx context.Context, query bson.M, nullIfNoService bool) *goauthlib.User {
-	res := repo.Client.Database(dbName).Collection(userCollection).FindOne(ctx, query)
+	fullQuery :=
+		bson.M{"$and": []bson.M{
+			bson.M{
+				"$or": []bson.M{
+					{"deleted": false},
+					{"deleted": bson.M{"$exists": false}},
+				},
+			},
+			query,
+		},
+		}
+
+	res := repo.Client.Database(dbName).Collection(userCollection).FindOne(ctx, fullQuery)
 	var mongoUser mongoUser
 	err := res.Decode(&mongoUser)
 	if err != nil {
@@ -182,6 +199,7 @@ func (repo *Repository) CreateForEntity(ctx context.Context, entity goauthlib.Au
 		Entities: []mongoAuthorizationEntity{toMongoEntity(entity)},
 		Services: []string{repo.service},
 		Info:     map[string]any{},
+		Deleted:  false,
 	}
 	_, err := repo.Client.Database(dbName).Collection(userCollection).InsertOne(ctx, mongoUser)
 	if err != nil {
@@ -190,11 +208,40 @@ func (repo *Repository) CreateForEntity(ctx context.Context, entity goauthlib.Au
 	return toDomainUser(&mongoUser)
 }
 
-func (repo *Repository) RemoveService(ctx context.Context, id string) {
-	_, err := repo.Client.
-		Database(dbName).
-		Collection(userCollection).
-		UpdateOne(ctx, bson.M{"_id": *gomongo.StrToObjId(&id)}, bson.M{"$pull": bson.M{"services": repo.service}}, nil)
+func (repo *Repository) RemoveService(ctx context.Context, id string, softDeleteIfNoServices bool, callback func(ctx context.Context, userId string) error) {
+	_, err := gomongo.InTransactionSession[gomongo.Void](ctx, repo.Client, func(sc mongo.SessionContext) (gomongo.Void, error) {
+		objId := *gomongo.StrToObjId(&id)
+		_, err := repo.Client.
+			Database(dbName).
+			Collection(userCollection).
+			UpdateOne(sc, bson.M{"_id": objId}, bson.M{"$pull": bson.M{"services": repo.service}}, nil)
+		if err != nil {
+			return gomongo.Void{}, err
+		}
+		if softDeleteIfNoServices {
+			var mongoUsr mongoUser
+			err := repo.Client.Database(dbName).
+				Collection(userCollection).FindOne(ctx, bson.M{"_id": objId}).Decode(&mongoUsr)
+
+			if err != nil {
+				return gomongo.Void{}, err
+			}
+
+			if len(mongoUsr.Services) == 1 && mongoUsr.Services[0] == repo.service {
+				// IT will delete. transaction has not been commited yet.
+				err := repo.SoftDeleteUser(ctx, mongoUsr.ID)
+				if err != nil {
+					return gomongo.Void{}, err
+				}
+			}
+		}
+		err = callback(sc, id)
+		if err != nil {
+			return gomongo.Void{}, err
+		}
+		return gomongo.Void{}, nil
+	})
+
 	if err != nil {
 		panic(err)
 	}

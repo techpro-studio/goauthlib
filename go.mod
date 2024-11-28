@@ -9,7 +9,7 @@ require (
 	github.com/dgrijalva/jwt-go v3.2.0+incompatible
 	github.com/michimani/gotwi v0.16.1
 	github.com/techpro-studio/gohttplib v0.0.3
-	github.com/techpro-studio/gomongo v0.0.6
+	github.com/techpro-studio/gomongo v0.0.7
 	go.mongodb.org/mongo-driver v1.17.1
 	golang.org/x/oauth2 v0.16.0
 )
