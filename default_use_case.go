@@ -156,6 +156,10 @@ func (useCase *DefaultUseCase) VerifyDelete(ctx context.Context, user User, code
 	if verification.Code != code {
 		return gohttplib.HTTP400("code is not equal")
 	}
+	return useCase.ForceDelete(ctx, user)
+}
+
+func (useCase *DefaultUseCase) ForceDelete(ctx context.Context, user User) error {
 	useCase.repository.RemoveService(ctx, user.ID)
 	for _, entity := range user.Entities {
 		provider := useCase.SocialProviders[entity.Type]

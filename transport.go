@@ -92,6 +92,12 @@ func (t *Transport) VerifyDeleteHandler(writer http.ResponseWriter, request *htt
 	gohttplib.WriteJsonOrError(writer, OK, 200, err)
 }
 
+func (t *Transport) ForceDeleteHandler(writer http.ResponseWriter, request *http.Request) {
+	usr := GetUserFromRequestWithPanic(request)
+	err = t.useCase.ForceDelete(request.Context(), usr)
+	gohttplib.WriteJsonOrError(writer, OK, 200, err)
+}
+
 func (t *Transport) AuthenticateWithCodeHandler(w http.ResponseWriter, r *http.Request) {
 	t.withAuthorizationEntityAndCode(w, r, func(entity AuthorizationEntity, code string) (i interface{}, e error) {
 		return t.useCase.AuthenticateWithCode(r.Context(), entity, code)

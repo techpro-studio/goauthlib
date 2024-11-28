@@ -20,4 +20,5 @@ type UseCase interface {
 	AddSocialAuthenticationEntity(ctx context.Context, user *User, payload SocialProviderPayload) (*User, error)
 	VerifyAuthenticationEntity(ctx context.Context, user *User, entity AuthorizationEntity, code string) (*User, error)
 	PatchUserInfo(ctx context.Context, usr *User, body map[string]interface{}) (*User, error)
+	ForceDelete(ctx context.Context, usr User) error
 }

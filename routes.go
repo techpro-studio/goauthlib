@@ -14,6 +14,7 @@ func RegisterPrivateInRouter(t *Transport, router gohttplib.Router, usrMiddlewar
 func RegisterPublicInRouter(t *Transport, router gohttplib.Router, usrMiddleware gohttplib.Middleware, defaultMiddleWare gohttplib.Middleware) {
 	router.Post("/delete/send", defaultMiddleWare(usrMiddleware(http.HandlerFunc(t.SendVerificationCodeHandler))))
 	router.Post("/delete", defaultMiddleWare(usrMiddleware(http.HandlerFunc(t.VerifyDeleteHandler))))
+	router.Post("/force-delete", defaultMiddleWare(usrMiddleware(http.HandlerFunc(t.ForceDeleteHandler))))
 	router.Patch("/user/info", defaultMiddleWare(usrMiddleware(http.HandlerFunc(t.PatchInfoHandler))))
 	router.Post("/auth/send", defaultMiddleWare(http.HandlerFunc(t.SendCodeHandler)))
 	router.Post("/user/entity/remove", defaultMiddleWare(usrMiddleware(http.HandlerFunc(t.RemoveAuthenticationEntityHandler))))
