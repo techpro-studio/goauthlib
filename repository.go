@@ -9,7 +9,7 @@ type Repository interface {
 	GetForEntity(ctx context.Context, entity AuthorizationEntity) *User
 	CreateForEntity(ctx context.Context, entity AuthorizationEntity) *User
 	GetForSocial(ctx context.Context, result *oauth.ProviderResult) *User
-	EnsureService(ctx context.Context, id string)
+	EnsureService(ctx context.Context, id string) bool
 	RemoveService(ctx context.Context, id string, softDeleteIfNoServices bool, callback func(ctx context.Context, userId string) error)
 	CreateForSocial(ctx context.Context, result *oauth.ProviderResult) *User
 	Save(ctx context.Context, model *User)

@@ -25,12 +25,9 @@ type OTPDelivery interface {
 }
 
 type UserCaseCallback interface {
-	RemoveServiceCallback
 	OnCreateUser(ctx context.Context, user *User, provider *oauth.ProviderResult)
 	OnUpdateUser(ctx context.Context, user *User)
-}
-
-type RemoveServiceCallback interface {
+	OnAddService(ctx context.Context, user *User)
 	OnRemoveServiceFrom(ctx context.Context, user *User) error
 }
 
@@ -90,7 +87,9 @@ func (useCase *DefaultUseCase) AuthenticateViaSocialProvider(ctx context.Context
 		usr = useCase.repository.CreateForSocial(ctx, result)
 		useCase.callback.OnCreateUser(ctx, usr, result)
 	} else {
-		useCase.repository.EnsureService(ctx, usr.ID)
+		if useCase.repository.EnsureService(ctx, usr.ID) {
+			useCase.callback.OnAddService(ctx, usr)
+		}
 		useCase.appendNewEntitiesFromSocialToUserIfNeed(ctx, usr, result)
 	}
 	useCase.repository.SaveOAuthData(ctx, result)

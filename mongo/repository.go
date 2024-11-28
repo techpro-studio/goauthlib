@@ -247,18 +247,33 @@ func (repo *Repository) RemoveService(ctx context.Context, id string, softDelete
 	}
 }
 
-func (repo *Repository) EnsureService(ctx context.Context, id string) {
-	repo.ensureService(ctx, *gomongo.StrToObjId(&id))
+func (repo *Repository) EnsureService(ctx context.Context, id string) bool {
+	return repo.ensureService(ctx, *gomongo.StrToObjId(&id))
 }
 
-func (repo *Repository) ensureService(ctx context.Context, userId primitive.ObjectID) {
-	_, err := repo.Client.
+func (repo *Repository) ensureService(ctx context.Context, userId primitive.ObjectID) bool {
+	var user mongoUser
+	err := repo.Client.
+		Database(dbName).
+		Collection(userCollection).FindOne(ctx, bson.M{"_id": userId}).Decode(&user)
+	if err != nil {
+		panic(err)
+	}
+	if user.Deleted {
+		panic("User already deleted")
+	}
+	hasService := utils.ContainsString(user.Services, repo.service)
+	if hasService {
+		return false
+	}
+	_, err = repo.Client.
 		Database(dbName).
 		Collection(userCollection).
 		UpdateOne(ctx, bson.M{"_id": userId}, bson.M{"$addToSet": bson.M{"services": repo.service}}, nil)
 	if err != nil {
 		panic(err)
 	}
+	return true
 }
 
 func (repo *Repository) Save(ctx context.Context, model *goauthlib.User) {
