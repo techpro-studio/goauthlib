@@ -94,7 +94,7 @@ func (t *Transport) VerifyDeleteHandler(writer http.ResponseWriter, request *htt
 
 func (t *Transport) ForceDeleteHandler(writer http.ResponseWriter, request *http.Request) {
 	usr := GetUserFromRequestWithPanic(request)
-	err = t.useCase.ForceDelete(request.Context(), usr)
+	err := t.useCase.ForceDelete(request.Context(), usr)
 	gohttplib.WriteJsonOrError(writer, OK, 200, err)
 }
 
