@@ -2,6 +2,7 @@ package goauthlib
 
 import (
 	"github.com/techpro-studio/gohttplib"
+	"github.com/techpro-studio/gohttplib/validator"
 	"net/http"
 )
 
@@ -139,4 +140,21 @@ func (t *Transport) PatchInfoHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	patched, err := t.useCase.PatchUserInfo(r.Context(), &usr, body)
 	gohttplib.WriteJsonOrError(w, patched, 200, err)
+}
+
+func (t *Transport) GetTempToken(w http.ResponseWriter, r *http.Request) {
+	usr := GetUserFromRequestWithPanic(r)
+	token, err := t.useCase.GenerateTempTokenFor(r.Context(), usr)
+	gohttplib.WriteJsonOrError(w, map[string]string{"token": token}, 200, err)
+}
+
+func (t *Transport) AuthWithTempToken(w http.ResponseWriter, r *http.Request) {
+	payload, err := validator.GetValidatedBody(r, MakeTempTokenVMap())
+	if err != nil {
+		gohttplib.SafeConvertToServerError(err).Write(w)
+		return
+	}
+	response, err := t.useCase.AuthenticateWithTempToken(r.Context(), payload["token"].(string))
+	gohttplib.WriteJsonOrError(w, response, 200, err)
+
 }

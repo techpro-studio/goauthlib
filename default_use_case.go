@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/dgrijalva/jwt-go"
+	"github.com/google/uuid"
 	"github.com/techpro-studio/goauthlib/oauth"
 	"github.com/techpro-studio/gohttplib"
 	"github.com/techpro-studio/gohttplib/utils"
@@ -50,11 +51,13 @@ func (d *DoNothingUseCaseCallback) OnRemoveServiceFrom(ctx context.Context, user
 }
 
 type DefaultUseCase struct {
-	SocialProviders map[string]oauth.SocialProvider
-	Deliveries      map[string]OTPDelivery
-	repository      Repository
-	callback        UserCaseCallback
-	config          Config
+	SocialProviders            map[string]oauth.SocialProvider
+	Deliveries                 map[string]OTPDelivery
+	tempTokenStorage           TempTokenStorage
+	tempTokenJWTSecretProvider TempTokenJWTSecretProvider
+	repository                 Repository
+	callback                   UserCaseCallback
+	config                     Config
 }
 
 func (useCase *DefaultUseCase) PatchUserInfo(ctx context.Context, usr *User, body map[string]interface{}) (*User, error) {
@@ -69,8 +72,8 @@ func (useCase *DefaultUseCase) RegisterOTPDelivery(key string, delivery OTPDeliv
 	useCase.Deliveries[key] = delivery
 }
 
-func NewDefaultUseCase(repository Repository, config Config, callback UserCaseCallback) *DefaultUseCase {
-	return &DefaultUseCase{repository: repository, SocialProviders: map[string]oauth.SocialProvider{}, Deliveries: map[string]OTPDelivery{}, config: config, callback: callback}
+func NewDefaultUseCase(repository Repository, config Config, callback UserCaseCallback, tempTokenStorage TempTokenStorage, tempTokenJWTSecretProvider TempTokenJWTSecretProvider) *DefaultUseCase {
+	return &DefaultUseCase{repository: repository, SocialProviders: map[string]oauth.SocialProvider{}, Deliveries: map[string]OTPDelivery{}, config: config, callback: callback, tempTokenStorage: tempTokenStorage, tempTokenJWTSecretProvider: tempTokenJWTSecretProvider}
 }
 
 func (useCase *DefaultUseCase) RegisterSocialProvider(key string, provider oauth.SocialProvider) {
@@ -394,6 +397,53 @@ func (useCase *DefaultUseCase) generateTokenFromModel(model User) (string, error
 	tokenObj := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 
 	token, err := tokenObj.SignedString([]byte(useCase.config.sharedSecret))
+	if err != nil {
+		return "", err
+	}
+	return token, nil
+}
+
+func (useCase *DefaultUseCase) AuthenticateWithTempToken(ctx context.Context, token string) (*Response, error) {
+	tokenObj, err := jwt.Parse(token, func(token *jwt.Token) (interface{}, error) {
+		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
+		}
+		return []byte(useCase.tempTokenJWTSecretProvider.GetTempTokenJWTSecret()), nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	claims, ok := tokenObj.Claims.(jwt.MapClaims)
+	if ok && tokenObj.Valid {
+		userId := claims["user_id"].(string)
+		tempToken := claims["token"].(string)
+		fetchedUserId, err := useCase.tempTokenStorage.GetUserIdForToken(ctx, tempToken)
+		if err != nil {
+			return nil, gohttplib.HTTP400(err.Error())
+		}
+		if fetchedUserId != userId {
+			return nil, gohttplib.HTTP400("Invalid token")
+		}
+		usr := useCase.repository.GetById(ctx, userId)
+		if usr == nil {
+			return nil, gohttplib.HTTP404("User not found")
+		}
+		authToken, err := useCase.generateTokenFromModel(*usr)
+		if err != nil {
+			return nil, gohttplib.HTTP400(err.Error())
+		}
+		return &Response{
+			Token:    authToken,
+			User:     *usr,
+			UserInfo: nil,
+		}, nil
+	}
+	return nil, gohttplib.HTTP400("Invalid token")
+}
+
+func (useCase *DefaultUseCase) GenerateTempTokenFor(ctx context.Context, usr User) (string, error) {
+	token := uuid.New().String()
+	err := useCase.tempTokenStorage.SetTempTokenForUser(ctx, token, usr.ID, 120)
 	if err != nil {
 		return "", err
 	}

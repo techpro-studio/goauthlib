@@ -21,4 +21,6 @@ type UseCase interface {
 	VerifyAuthenticationEntity(ctx context.Context, user *User, entity AuthorizationEntity, code string) (*User, error)
 	PatchUserInfo(ctx context.Context, usr *User, body map[string]interface{}) (*User, error)
 	ForceDelete(ctx context.Context, usr User) error
+	AuthenticateWithTempToken(ctx context.Context, token string) (*Response, error)
+	GenerateTempTokenFor(ctx context.Context, usr User) (string, error)
 }

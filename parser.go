@@ -27,6 +27,12 @@ func MakeSocialProviderVMap() validator.VMap {
 	}
 }
 
+func MakeTempTokenVMap() validator.VMap {
+	return validator.VMap{
+		"token": validator.RequiredStringValidators("token"),
+	}
+}
+
 type SocialProviderPayload struct {
 	Provider    string
 	Payload     string

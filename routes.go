@@ -9,9 +9,11 @@ func RegisterPrivateInRouter(t *Transport, router gohttplib.Router, usrMiddlewar
 	router.Post("/auth/verify", defaultMiddleWare(http.HandlerFunc(t.AuthenticateWithCodeHandler)))
 	router.Post("/auth/social", defaultMiddleWare(http.HandlerFunc(t.AuthenticateViaSocialProviderHandler)))
 	router.Get("/user", defaultMiddleWare(usrMiddleware(http.HandlerFunc(t.CurrentUserHandler))))
+	router.Post("/auth/temp", defaultMiddleWare(http.HandlerFunc(t.AuthWithTempToken)))
 }
 
 func RegisterPublicInRouter(t *Transport, router gohttplib.Router, usrMiddleware gohttplib.Middleware, defaultMiddleWare gohttplib.Middleware) {
+	router.Get("/auth/temp", defaultMiddleWare(usrMiddleware(http.HandlerFunc(t.GetTempToken))))
 	router.Post("/delete/send", defaultMiddleWare(usrMiddleware(http.HandlerFunc(t.SendVerificationCodeHandler))))
 	router.Post("/delete", defaultMiddleWare(usrMiddleware(http.HandlerFunc(t.VerifyDeleteHandler))))
 	router.Post("/force-delete", defaultMiddleWare(usrMiddleware(http.HandlerFunc(t.ForceDeleteHandler))))
