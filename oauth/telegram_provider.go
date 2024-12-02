@@ -136,18 +136,28 @@ const kLastName = "last_name"
 const kUserName = "username"
 const kId = "id"
 
-func mapUserData(usr map[string]any) UserData {
-	var id string
-	id, ok := usr[kId].(string)
-	if !ok {
-		id = strconv.Itoa(int(usr[kId].(float64)))
+func mapUserData(usr map[string]any) (UserData, error) {
+	if usr[kId] == nil {
+		return UserData{}, errors.New(fmt.Sprintf("invalid user data. id is absent. data %v", usr))
 	}
-	return UserData{
-		Id:        id,
+	data := UserData{
 		FirstName: getStringSafe(usr, kFirstName),
 		LastName:  getStringSafe(usr, kLastName),
 		Username:  getStringSafe(usr, kUserName),
 	}
+	stringId, ok := usr[kId].(string)
+	if ok {
+		data.Id = stringId
+		return data, nil
+	}
+
+	floatId, ok := usr[kId].(float64)
+	if ok {
+		data.Id = strconv.Itoa(int(floatId))
+		return data, nil
+	}
+	return UserData{}, errors.New("invalid user data. id is not string not float64")
+
 }
 
 func (t *TelegramProvider) GetInfoByToken(ctx context.Context, infoToken string) (*ProviderResult, error) {
@@ -167,13 +177,16 @@ func (t *TelegramProvider) GetInfoByToken(ctx context.Context, infoToken string)
 	var userData UserData
 	if userOk && user != "" {
 		var usr map[string]any
-		err := json.Unmarshal([]byte(user), &usr)
+		err = json.Unmarshal([]byte(user), &usr)
 		if err != nil {
 			return nil, err
 		}
-		userData = mapUserData(usr)
+		userData, err = mapUserData(usr)
 	} else {
-		userData = mapUserData(params)
+		userData, err = mapUserData(params)
+	}
+	if err != nil {
+		return nil, err
 	}
 
 	err = VerifyTelegramData(params, t.botToken)
