@@ -53,13 +53,13 @@ func SafeExtractUserIdFromHeader(h http.Header, secret string) *string {
 	}
 
 	// Safely access the claims
-	claims, ok := tokenObj.Claims.(jwt.MapClaims)
+	claims, ok := tokenObj.Claims.(*jwt.MapClaims)
 	if !ok {
 		log.Printf("Invalid claims type")
 		return nil
 	}
 
-	user, ok := claims["user"].(map[string]interface{})
+	user, ok := (*claims)["user"].(map[string]interface{})
 	if !ok {
 		log.Printf("User claim is missing or invalid")
 		return nil
