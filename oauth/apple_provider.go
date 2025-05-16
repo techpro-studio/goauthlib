@@ -13,7 +13,6 @@ type AppleProvider struct {
 	Key      string
 	ClientId string
 	TeamId   string
-	Web      bool
 }
 
 func (provider *AppleProvider) RevokeTokens(ctx context.Context, tokens Tokens) error {
