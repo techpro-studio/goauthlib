@@ -135,6 +135,7 @@ const kFirstName = "first_name"
 const kLastName = "last_name"
 const kUserName = "username"
 const kId = "id"
+const kRawData = "raw"
 
 func mapUserData(usr map[string]any) (UserData, error) {
 	if usr[kId] == nil {
@@ -204,6 +205,7 @@ func (t *TelegramProvider) GetInfoByToken(ctx context.Context, infoToken string)
 			kFirstName:                      userData.FirstName,
 			kLastName:                       userData.LastName,
 			fmt.Sprintf("tg_%s", kUserName): userData.Username,
+			kRawData:                        infoToken,
 		},
 	}, nil
 }
