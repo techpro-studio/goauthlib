@@ -26,7 +26,8 @@ type OTPDelivery interface {
 }
 
 type UserCaseCallback interface {
-	OnCreateUser(ctx context.Context, user *User, provider *oauth.ProviderResult)
+	OnSignUserWithSocial(ctx context.Context, user *User, provider oauth.ProviderResult)
+	OnCreateUser(ctx context.Context, user *User)
 	OnUpdateUser(ctx context.Context, user *User)
 	OnAddService(ctx context.Context, user *User)
 	OnRemoveServiceFrom(ctx context.Context, user *User) error
@@ -88,13 +89,14 @@ func (useCase *DefaultUseCase) AuthenticateViaSocialProvider(ctx context.Context
 	usr := useCase.repository.GetForSocial(ctx, result)
 	if usr == nil {
 		usr = useCase.repository.CreateForSocial(ctx, result)
-		useCase.callback.OnCreateUser(ctx, usr, result)
+		useCase.callback.OnCreateUser(ctx, usr)
 	} else {
 		if useCase.repository.EnsureService(ctx, usr.ID) {
 			useCase.callback.OnAddService(ctx, usr)
 		}
 		useCase.appendNewEntitiesFromSocialToUserIfNeed(ctx, usr, result)
 	}
+	useCase.callback.OnSignUserWithSocial(ctx, usr, *result)
 	useCase.repository.SaveOAuthData(ctx, result)
 	return useCase.generateResponseFor(usr, result.Raw)
 }
@@ -228,7 +230,7 @@ func (useCase *DefaultUseCase) AuthenticateWithCode(ctx context.Context, entity 
 	usr := useCase.repository.GetForEntity(ctx, entity)
 	if usr == nil {
 		usr = useCase.repository.CreateForEntity(ctx, entity)
-		useCase.callback.OnCreateUser(ctx, usr, nil)
+		useCase.callback.OnCreateUser(ctx, usr)
 	} else {
 		useCase.repository.EnsureService(ctx, usr.ID)
 	}
