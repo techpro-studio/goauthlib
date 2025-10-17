@@ -121,6 +121,16 @@ func (repo *Repository) GetTokensFor(ctx context.Context, entity *goauthlib.Auth
 	}, err
 }
 
+func (repo *Repository) UpsertForEntity(ctx context.Context, entity goauthlib.AuthorizationEntity) *goauthlib.User {
+	opts := options.FindOneAndUpdate().SetUpsert(true).SetReturnDocument(options.After)
+	var mongoUser mongoUser
+	err := repo.Client.Database(dbName).Collection(userCollection).FindOneAndUpdate(ctx, bson.M{"entities.type": entity.Type, "entities.value": entity.Value}, bson.M{"$set": bson.M{"deleted": false}, "$addToSet": bson.M{"services": repo.service}, "$setOnInsert": bson.M{"info": bson.M{}, "entities": bson.A{bson.M{"type": entity.Type, "value": entity.Value}}}}, opts).Decode(&mongoUser)
+	if err != nil {
+		panic(err)
+	}
+	return toDomainUser(&mongoUser)
+}
+
 func (repo *Repository) CreateForSocial(ctx context.Context, result *oauth.ProviderResult) *goauthlib.User {
 	entities := []mongoAuthorizationEntity{{Type: result.Type, Value: result.ID}}
 	if result.Email != "" {
@@ -151,7 +161,7 @@ func (repo *Repository) CreateForSocial(ctx context.Context, result *oauth.Provi
 func (repo *Repository) getOneUser(ctx context.Context, query bson.M, nullIfNoService bool) *goauthlib.User {
 	fullQuery :=
 		bson.M{"$and": []bson.M{
-			bson.M{
+			{
 				"$or": []bson.M{
 					{"deleted": false},
 					{"deleted": bson.M{"$exists": false}},

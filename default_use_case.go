@@ -2,13 +2,14 @@ package goauthlib
 
 import (
 	"context"
+	"crypto/sha3"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"github.com/dgrijalva/jwt-go"
 	"github.com/google/uuid"
 	"github.com/techpro-studio/goauthlib/oauth"
 	"github.com/techpro-studio/gohttplib"
-	"github.com/techpro-studio/gohttplib/utils"
 	"math/rand"
 )
 
@@ -149,7 +150,7 @@ func (useCase *DefaultUseCase) getInfoFromProvider(ctx context.Context, payload 
 }
 
 func (useCase *DefaultUseCase) generateResponseFor(usr *User, userInfo map[string]interface{}) (*Response, error) {
-	jsonWebToken, err := useCase.generateTokenFromModel(*usr)
+	jsonWebToken, err := GenerateTokenFromModel(*usr, useCase.config.sharedSecret)
 	if err != nil {
 		return nil, gohttplib.HTTP400(err.Error())
 	}
@@ -355,7 +356,7 @@ func (useCase *DefaultUseCase) GetValidModelFromToken(ctx context.Context, token
 	if model == nil {
 		return nil
 	}
-	if useCase.generateTokenHash(*model) != userData["hash"] {
+	if GenerateTokenHash(*model, useCase.config.sharedSecret) != userData["hash"] {
 		return nil
 	}
 	return model
@@ -377,32 +378,6 @@ func (useCase *DefaultUseCase) getUserDataFromToken(token string) (map[string]in
 		return claims, nil
 	}
 	return nil, errors.New("failed jwt")
-}
-
-func (useCase *DefaultUseCase) generateTokenHash(model User) string {
-	return useCase.config.sharedSecret + utils.GetMD5Hash(model.ID)
-}
-
-func (useCase *DefaultUseCase) generateTokenFromModel(model User) (string, error) {
-	hash := useCase.generateTokenHash(model)
-
-	claims := struct {
-		Hash string `json:"hash"`
-		User User   `json:"user"`
-		jwt.StandardClaims
-	}{hash,
-		model,
-		jwt.StandardClaims{
-			Issuer: "auth",
-		},
-	}
-	tokenObj := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-
-	token, err := tokenObj.SignedString([]byte(useCase.config.sharedSecret))
-	if err != nil {
-		return "", err
-	}
-	return token, nil
 }
 
 func (useCase *DefaultUseCase) AuthenticateWithTempToken(ctx context.Context, token string) (*Response, error) {
@@ -430,7 +405,7 @@ func (useCase *DefaultUseCase) AuthenticateWithTempToken(ctx context.Context, to
 		if usr == nil {
 			return nil, gohttplib.HTTP404("User not found")
 		}
-		authToken, err := useCase.generateTokenFromModel(*usr)
+		authToken, err := GenerateTokenFromModel(*usr, useCase.config.sharedSecret)
 		if err != nil {
 			return nil, gohttplib.HTTP400(err.Error())
 		}
@@ -450,4 +425,40 @@ func (useCase *DefaultUseCase) GenerateTempTokenFor(ctx context.Context, usr Use
 		return "", err
 	}
 	return token, nil
+}
+
+func GenerateTokenFromModel(model User, ss string) (string, error) {
+	hash := GenerateTokenHash(model, ss)
+
+	claims := struct {
+		Hash string `json:"hash"`
+		User User   `json:"user"`
+		jwt.StandardClaims
+	}{hash,
+		model,
+		jwt.StandardClaims{
+			Issuer: "auth",
+		},
+	}
+	tokenObj := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+
+	token, err := tokenObj.SignedString([]byte(ss))
+	if err != nil {
+		return "", err
+	}
+	return token, nil
+}
+
+func GenerateTokenHash(model User, ss string) string {
+	sha := sha3.New256()
+	bytes, err := hex.DecodeString(model.ID)
+	if err != nil {
+		panic(err)
+	}
+	bytes = append(bytes, []byte(ss)...)
+	_, err = sha.Write(bytes)
+	if err != nil {
+		panic(err)
+	}
+	return hex.EncodeToString(sha.Sum(nil))
 }
