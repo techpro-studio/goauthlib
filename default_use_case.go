@@ -34,22 +34,27 @@ type UserCaseCallback interface {
 	OnRemoveServiceFrom(ctx context.Context, user *User) error
 }
 
+func DoNothingCallback() UserCaseCallback {
+	return DoNothingUseCaseCallback{}
+}
+
 type DoNothingUseCaseCallback struct {
 }
 
-func (d *DoNothingUseCaseCallback) OnUpdateUser(ctx context.Context, user *User, result oauth.ProviderResult) {
+func (d DoNothingUseCaseCallback) OnSignUserWithSocial(ctx context.Context, user *User, provider oauth.ProviderResult) {
 }
 
-func NewDoNothingUseCaseCallback() *DoNothingUseCaseCallback {
-	return &DoNothingUseCaseCallback{}
+func (d DoNothingUseCaseCallback) OnCreateUser(ctx context.Context, user *User) {
 }
 
-func (d *DoNothingUseCaseCallback) OnCreateUser(ctx context.Context, user *User) {
-
+func (d DoNothingUseCaseCallback) OnUpdateUser(ctx context.Context, user *User) {
 }
 
-func (d *DoNothingUseCaseCallback) OnRemoveServiceFrom(ctx context.Context, user *User) {
+func (d DoNothingUseCaseCallback) OnAddService(ctx context.Context, user *User) {
+}
 
+func (d DoNothingUseCaseCallback) OnRemoveServiceFrom(ctx context.Context, user *User) error {
+	return nil
 }
 
 type DefaultUseCase struct {
