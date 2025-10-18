@@ -2,11 +2,11 @@ package mongo
 
 import (
 	auth "github.com/techpro-studio/goauthlib"
-	"go.mongodb.org/mongo-driver/bson/primitive"
+	"go.mongodb.org/mongo-driver/v2/bson"
 )
 
 type mongoUser struct {
-	ID       primitive.ObjectID         `bson:"_id"`
+	ID       bson.ObjectID              `bson:"_id"`
 	Entities []mongoAuthorizationEntity `bson:"entities"`
 	Info     map[string]any             `bson:"info"`
 	Deleted  bool                       `bson:"deleted"`
@@ -55,7 +55,7 @@ func toMongoUser(u *auth.User) *mongoUser {
 	for _, e := range u.Entities {
 		entities = append(entities, toMongoEntity(e))
 	}
-	id, err := primitive.ObjectIDFromHex(u.ID)
+	id, err := bson.ObjectIDFromHex(u.ID)
 	if err != nil {
 		panic(err)
 	}
@@ -67,15 +67,15 @@ func toMongoUser(u *auth.User) *mongoUser {
 }
 
 type mongoVerification struct {
-	ID              primitive.ObjectID `bson:"_id"`
-	Code            string             `bson:"code"`
-	Destination     string             `bson:"destination"`
-	DestinationType string             `bson:"destination_type"`
-	Timestamp       int64              `json:"timestamp"`
+	ID              bson.ObjectID `bson:"_id"`
+	Code            string        `bson:"code"`
+	Destination     string        `bson:"destination"`
+	DestinationType string        `bson:"destination_type"`
+	Timestamp       int64         `json:"timestamp"`
 }
 
 func toMongoVerification(v *auth.Verification) *mongoVerification {
-	id, err := primitive.ObjectIDFromHex(v.ID)
+	id, err := bson.ObjectIDFromHex(v.ID)
 	if err != nil {
 		panic(err)
 	}

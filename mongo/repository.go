@@ -6,10 +6,9 @@ import (
 	"github.com/techpro-studio/goauthlib/oauth"
 	"github.com/techpro-studio/gohttplib/utils"
 	"github.com/techpro-studio/gomongo"
-	"go.mongodb.org/mongo-driver/bson"
-	"go.mongodb.org/mongo-driver/bson/primitive"
-	"go.mongodb.org/mongo-driver/mongo"
-	"go.mongodb.org/mongo-driver/mongo/options"
+	"go.mongodb.org/mongo-driver/v2/bson"
+	"go.mongodb.org/mongo-driver/v2/mongo"
+	"go.mongodb.org/mongo-driver/v2/mongo/options"
 	"time"
 )
 
@@ -20,13 +19,13 @@ type Repository struct {
 	service string
 }
 
-func (repo *Repository) SoftDeleteUser(ctx context.Context, id primitive.ObjectID) error {
+func (repo *Repository) SoftDeleteUser(ctx context.Context, id bson.ObjectID) error {
 	_, err := repo.Client.Database(dbName).Collection(userCollection).UpdateOne(ctx, bson.M{"_id": id}, bson.M{"$set": bson.M{"deleted": true}})
 	return err
 }
 
 func (repo *Repository) DeleteVerification(ctx context.Context, id string) {
-	objId, err := primitive.ObjectIDFromHex(id)
+	objId, err := bson.ObjectIDFromHex(id)
 	if err != nil {
 		panic(err)
 	}
@@ -55,8 +54,7 @@ func (repo *Repository) CreateVerificationForEntity(ctx context.Context, entity 
 			"service":          repo.service,
 		},
 	}
-	yes := true
-	_, err := repo.Client.Database(dbName).Collection(verificationCollection).UpdateOne(ctx, q, u, &options.UpdateOptions{Upsert: &yes})
+	_, err := repo.Client.Database(dbName).Collection(verificationCollection).UpdateOne(ctx, q, u, options.UpdateOne().SetUpsert(true))
 	if err != nil {
 		panic(err)
 	}
@@ -76,8 +74,7 @@ func (repo *Repository) CreateServiceActionVerification(ctx context.Context, act
 			"service":   repo.service,
 		},
 	}
-	yes := true
-	_, err := repo.Client.Database(dbName).Collection(verificationCollection).UpdateOne(ctx, q, u, &options.UpdateOptions{Upsert: &yes})
+	_, err := repo.Client.Database(dbName).Collection(verificationCollection).UpdateOne(ctx, q, u, options.UpdateOne().SetUpsert(true))
 	if err != nil {
 		panic(err)
 	}
@@ -95,8 +92,7 @@ func (repo *Repository) GetForSocial(ctx context.Context, result *oauth.Provider
 }
 
 func (repo *Repository) SaveOAuthData(ctx context.Context, result *oauth.ProviderResult) {
-	upsert := true
-	_, err := repo.Client.Database(dbName).Collection(oauthDataCollection).UpdateOne(ctx, map[string]interface{}{"type": result.Type, "provider_id": result.ID, "service": repo.service}, map[string]interface{}{"$set": map[string]interface{}{"data": result.Raw, "tokens": result.Tokens}}, &options.UpdateOptions{Upsert: &upsert})
+	_, err := repo.Client.Database(dbName).Collection(oauthDataCollection).UpdateOne(ctx, map[string]interface{}{"type": result.Type, "provider_id": result.ID, "service": repo.service}, map[string]interface{}{"$set": map[string]interface{}{"data": result.Raw, "tokens": result.Tokens}}, options.UpdateOne().SetUpsert(true))
 	if err != nil {
 		panic(err)
 	}
@@ -146,7 +142,7 @@ func (repo *Repository) CreateForSocial(ctx context.Context, result *oauth.Provi
 		})
 	}
 	mongoUser := mongoUser{
-		ID:       primitive.NewObjectID(),
+		ID:       bson.NewObjectID(),
 		Entities: entities,
 		Services: []string{repo.service},
 		Info:     nil,
@@ -205,7 +201,7 @@ func (repo *Repository) GetForEntity(ctx context.Context, entity goauthlib.Autho
 
 func (repo *Repository) CreateForEntity(ctx context.Context, entity goauthlib.AuthorizationEntity) *goauthlib.User {
 	mongoUser := mongoUser{
-		ID:       primitive.NewObjectID(),
+		ID:       bson.NewObjectID(),
 		Entities: []mongoAuthorizationEntity{toMongoEntity(entity)},
 		Services: []string{repo.service},
 		Info:     map[string]any{},
@@ -219,7 +215,7 @@ func (repo *Repository) CreateForEntity(ctx context.Context, entity goauthlib.Au
 }
 
 func (repo *Repository) RemoveService(ctx context.Context, id string, softDeleteIfNoServices bool, callback func(ctx context.Context, userId string) error) {
-	_, err := gomongo.InTransactionSession[gomongo.Void](ctx, repo.Client, func(sc mongo.SessionContext) (gomongo.Void, error) {
+	_, err := gomongo.InTransactionSession[gomongo.Void](ctx, repo.Client, func(sc context.Context) (gomongo.Void, error) {
 		objId := *gomongo.StrToObjId(&id)
 		_, err := repo.Client.
 			Database(dbName).
@@ -261,7 +257,7 @@ func (repo *Repository) EnsureService(ctx context.Context, id string) bool {
 	return repo.ensureService(ctx, *gomongo.StrToObjId(&id))
 }
 
-func (repo *Repository) ensureService(ctx context.Context, userId primitive.ObjectID) bool {
+func (repo *Repository) ensureService(ctx context.Context, userId bson.ObjectID) bool {
 	var user mongoUser
 	err := repo.Client.
 		Database(dbName).
@@ -298,7 +294,7 @@ func (repo *Repository) Save(ctx context.Context, model *goauthlib.User) {
 }
 
 func (repo *Repository) GetById(ctx context.Context, id string) *goauthlib.User {
-	objectID, err := primitive.ObjectIDFromHex(id)
+	objectID, err := bson.ObjectIDFromHex(id)
 	if err != nil {
 		panic(err)
 	}
