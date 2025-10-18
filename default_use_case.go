@@ -67,6 +67,20 @@ type DefaultUseCase struct {
 	config                     Config
 }
 
+func (useCase *DefaultUseCase) UpsertUser(ctx context.Context, entity AuthorizationEntity) (*Response, error) {
+	user := useCase.repository.UpsertForEntity(ctx, entity)
+
+	token, err := GenerateTokenFromModel(*user, useCase.config.sharedSecret)
+	if err != nil {
+		return nil, err
+	}
+	return &Response{
+		Token:    token,
+		User:     *user,
+		UserInfo: nil,
+	}, nil
+}
+
 func (useCase *DefaultUseCase) PatchUserInfo(ctx context.Context, usr *User, body map[string]interface{}) (*User, error) {
 	for k, v := range body {
 		usr.Info[k] = v
