@@ -8,14 +8,12 @@ require (
 	github.com/google/uuid v1.6.0
 	github.com/michimani/gotwi v0.16.1
 	github.com/techpro-studio/gohttplib v0.0.3
-	github.com/techpro-studio/gomongo v0.0.9
+	github.com/techpro-studio/gomongo v1.0.0
 	go.mongodb.org/mongo-driver/v2 v2.3.1
 	golang.org/x/oauth2 v0.32.0
 )
 
 require github.com/golang/protobuf v1.5.2 // indirect
-
-replace github.com/techpro-studio/gomongo => ../gomongo
 
 require (
 	github.com/golang-jwt/jwt/v5 v5.3.0 // indirect// indirect
