@@ -68,8 +68,10 @@ type DefaultUseCase struct {
 }
 
 func (useCase *DefaultUseCase) UpsertUser(ctx context.Context, entity AuthorizationEntity) (*Response, error) {
-	user := useCase.repository.UpsertForEntity(ctx, entity)
-
+	user, err := useCase.repository.UpsertForEntity(ctx, entity)
+	if err != nil {
+		return nil, err
+	}
 	token, err := GenerateTokenFromModel(*user, useCase.config.sharedSecret)
 	if err != nil {
 		return nil, err

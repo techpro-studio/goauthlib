@@ -117,14 +117,14 @@ func (repo *Repository) GetTokensFor(ctx context.Context, entity *goauthlib.Auth
 	}, err
 }
 
-func (repo *Repository) UpsertForEntity(ctx context.Context, entity goauthlib.AuthorizationEntity) *goauthlib.User {
+func (repo *Repository) UpsertForEntity(ctx context.Context, entity goauthlib.AuthorizationEntity) (*goauthlib.User, error) {
 	opts := options.FindOneAndUpdate().SetUpsert(true).SetReturnDocument(options.After)
 	var mongoUser mongoUser
 	err := repo.Client.Database(dbName).Collection(userCollection).FindOneAndUpdate(ctx, bson.M{"entities.type": entity.Type, "entities.value": entity.Value}, bson.M{"$set": bson.M{"deleted": false}, "$addToSet": bson.M{"services": repo.service}, "$setOnInsert": bson.M{"info": bson.M{}, "entities": bson.A{bson.M{"type": entity.Type, "value": entity.Value}}}}, opts).Decode(&mongoUser)
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
-	return toDomainUser(&mongoUser)
+	return toDomainUser(&mongoUser), nil
 }
 
 func (repo *Repository) CreateForSocial(ctx context.Context, result *oauth.ProviderResult) *goauthlib.User {
