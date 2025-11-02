@@ -448,6 +448,29 @@ func (useCase *DefaultUseCase) GenerateTempTokenFor(ctx context.Context, usr Use
 	return token, nil
 }
 
+func (useCase *DefaultUseCase) ExtractAvatarUrlFromSocialProvider(ctx context.Context, userId string) *string {
+	user := useCase.repository.GetById(ctx, userId)
+	if user == nil {
+		return nil
+	}
+
+	for _, entity := range user.Entities {
+		provider, ok := useCase.SocialProviders[entity.Type]
+		if !ok {
+			continue
+		}
+		url, err := provider.ExtractAvatarUrl(ctx, entity.Value)
+		if err != nil {
+			continue
+		}
+		if url == nil {
+			continue
+		}
+		return url
+	}
+	return nil
+}
+
 func GenerateTokenFromModel(model User, ss string) (string, error) {
 	hash := GenerateTokenHash(model, ss)
 

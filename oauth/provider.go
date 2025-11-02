@@ -40,6 +40,7 @@ type SocialProvider interface {
 	GetInfoByToken(ctx context.Context, infoToken string) (*ProviderResult, error)
 	ExchangeCode(ctx context.Context, code string) (*Result, error)
 	RevokeTokens(ctx context.Context, tokens Tokens) error
+	ExtractAvatarUrl(ctx context.Context, id string) (*string, error)
 }
 
 func ExchangeCodeUsingProvider(config *oauth2.Config, ctx context.Context, code string) (*Result, error) {

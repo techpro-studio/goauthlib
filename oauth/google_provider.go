@@ -29,6 +29,10 @@ func (provider *GoogleProvider) ExchangeCode(ctx context.Context, code string) (
 	return ExchangeCodeUsingProvider(provider.oauthConfig, ctx, code)
 }
 
+func (provider *GoogleProvider) ExtractAvatarUrl(ctx context.Context, id string) (*string, error) {
+	return nil, nil
+}
+
 func (provider *GoogleProvider) GetInfoByToken(ctx context.Context, token string) (*ProviderResult, error) {
 	req, err := http.NewRequest("GET", "https://www.googleapis.com/oauth2/v3/userinfo?access_token="+token, nil)
 	if err != nil {

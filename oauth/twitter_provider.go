@@ -65,6 +65,10 @@ func (t TwitterProvider) GetInfoByToken(ctx context.Context, infoToken string) (
 	}, nil
 }
 
+func (t *TwitterProvider) ExtractAvatarUrl(ctx context.Context, id string) (*string, error) {
+	return nil, nil
+}
+
 func (t TwitterProvider) ExchangeCode(ctx context.Context, code string) (*Result, error) {
 	return nil, nil
 }

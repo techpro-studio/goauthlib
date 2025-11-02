@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 	"log"
 	"net/url"
 	"sort"
@@ -159,6 +160,46 @@ func mapUserData(usr map[string]any) (UserData, error) {
 	}
 	return UserData{}, errors.New("invalid user data. id is not string not float64")
 
+}
+
+func (t *TelegramProvider) ExtractAvatarUrl(ctx context.Context, id string) (*string, error) {
+	bot, err := tgbotapi.NewBotAPI(t.botToken)
+	if err != nil {
+		return nil, err
+	}
+
+	userID, err := strconv.ParseInt(id, 10, 64) // Replace with the target user's Telegram ID
+	if err != nil {
+		return nil, err
+	}
+
+	// Fetch user profile photos
+	profilePhotosConfig := tgbotapi.NewUserProfilePhotos(userID)
+	photos, err := bot.GetUserProfilePhotos(profilePhotosConfig)
+	if err != nil {
+		return nil, err
+	}
+
+	if photos.TotalCount > 0 && len(photos.Photos) > 0 {
+		// Get the first photo from the first set of photos
+		firstPhoto := photos.Photos[0][0]
+
+		// Get the file ID for the photo
+		fileID := firstPhoto.FileID
+
+		// Fetch the file info
+		fileConfig := tgbotapi.FileConfig{FileID: fileID}
+		file, err := bot.GetFile(fileConfig)
+		if err != nil {
+			return nil, err
+		}
+
+		// Construct the URL for the file
+		fileURL := fmt.Sprintf("https://api.telegram.org/file/bot%s/%s", bot.Token, file.FilePath)
+		return &fileURL, nil
+	} else {
+		return nil, nil
+	}
 }
 
 func (t *TelegramProvider) GetInfoByToken(ctx context.Context, infoToken string) (*ProviderResult, error) {

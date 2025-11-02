@@ -24,4 +24,5 @@ type UseCase interface {
 	ForceDelete(ctx context.Context, usr User) error
 	AuthenticateWithTempToken(ctx context.Context, token string) (*Response, error)
 	GenerateTempTokenFor(ctx context.Context, usr User) (string, error)
+	ExtractAvatarUrlFromSocialProvider(ctx context.Context, userId string) *string
 }

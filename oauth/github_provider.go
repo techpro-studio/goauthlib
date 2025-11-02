@@ -27,6 +27,10 @@ func (provider *GithubProvider) ExchangeCode(ctx context.Context, code string) (
 	return ExchangeCodeUsingProvider(provider.oauthConfig, ctx, code)
 }
 
+func (provider *GithubProvider) ExtractAvatarUrl(ctx context.Context, id string) (*string, error) {
+	return nil, nil
+}
+
 func (provider *GithubProvider) RevokeTokens(ctx context.Context, tokens Tokens) error {
 	return nil
 }

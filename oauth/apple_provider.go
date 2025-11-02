@@ -39,6 +39,9 @@ func (provider *AppleProvider) RevokeTokens(ctx context.Context, tokens Tokens) 
 
 	return errors.Join(accessErr, refreshErr)
 }
+func (provider *AppleProvider) ExtractAvatarUrl(ctx context.Context, id string) (*string, error) {
+	return nil, nil
+}
 
 func (provider *AppleProvider) ExchangeCode(ctx context.Context, code string) (*Result, error) {
 	clientId := provider.ClientId
