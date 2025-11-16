@@ -92,7 +92,7 @@ func (repo *Repository) GetForSocial(ctx context.Context, result *oauth.Provider
 }
 
 func (repo *Repository) SaveOAuthData(ctx context.Context, result *oauth.ProviderResult) {
-	_, err := repo.Client.Database(dbName).Collection(oauthDataCollection).UpdateOne(ctx, map[string]interface{}{"type": result.Type, "provider_id": result.ID, "service": repo.service}, map[string]interface{}{"$set": map[string]interface{}{"data": result.Raw, "tokens": result.Tokens}}, options.UpdateOne().SetUpsert(true))
+	_, err := repo.Client.Database(dbName).Collection(oauthDataCollection).UpdateOne(ctx, map[string]interface{}{"type": result.Type, "provider_id": result.ID, "service": repo.service}, map[string]interface{}{"$set": map[string]interface{}{"data": result.Raw, "tokens": bson.M{"access": result.Tokens.Access, "refresh": result.Tokens.Refresh}}}, options.UpdateOne().SetUpsert(true))
 	if err != nil {
 		panic(err)
 	}
@@ -100,7 +100,9 @@ func (repo *Repository) SaveOAuthData(ctx context.Context, result *oauth.Provide
 
 func (repo *Repository) GetTokensFor(ctx context.Context, entity *goauthlib.AuthorizationEntity) (*oauth.Tokens, error) {
 	dbResult := repo.Client.Database(dbName).Collection(oauthDataCollection).FindOne(ctx, map[string]interface{}{"type": entity.Type, "provider_id": entity.Value, "service": repo.service})
-	var result map[string]any
+	var result struct {
+		Tokens *oauth.Tokens `bson:"tokens"`
+	}
 	err := dbResult.Decode(&result)
 	if err != nil {
 		if err.Error() != notFoundDocumentError {
@@ -108,19 +110,23 @@ func (repo *Repository) GetTokensFor(ctx context.Context, entity *goauthlib.Auth
 		}
 		return nil, nil
 	}
-	if result["tokens"] == nil {
+	if result.Tokens == nil {
 		return nil, nil
 	}
 	return &oauth.Tokens{
-		Access:  result["tokens"].(map[string]any)["access"].(string),
-		Refresh: result["tokens"].(map[string]any)["refresh"].(string),
+		Access:  result.Tokens.Access,
+		Refresh: result.Tokens.Refresh,
 	}, err
 }
 
-func (repo *Repository) UpsertForEntity(ctx context.Context, entity goauthlib.AuthorizationEntity) (*goauthlib.User, error) {
+func (repo *Repository) UpsertForEntity(ctx context.Context, entity goauthlib.AuthorizationEntity, info map[string]any) (*goauthlib.User, error) {
 	opts := options.FindOneAndUpdate().SetUpsert(true).SetReturnDocument(options.After)
 	var mongoUser mongoUser
-	err := repo.Client.Database(dbName).Collection(userCollection).FindOneAndUpdate(ctx, bson.M{"entities.type": entity.Type, "entities.value": entity.Value}, bson.M{"$set": bson.M{"deleted": false}, "$addToSet": bson.M{"services": repo.service}, "$setOnInsert": bson.M{"info": bson.M{}, "entities": bson.A{bson.M{"type": entity.Type, "value": entity.Value}}}}, opts).Decode(&mongoUser)
+	setMap := bson.M{"deleted": false}
+	if info != nil && len(info) > 0 {
+		setMap["info"] = info
+	}
+	err := repo.Client.Database(dbName).Collection(userCollection).FindOneAndUpdate(ctx, bson.M{"entities.type": entity.Type, "entities.value": entity.Value}, bson.M{"$set": setMap, "$addToSet": bson.M{"services": repo.service}, "$setOnInsert": bson.M{"entities": bson.A{bson.M{"type": entity.Type, "value": entity.Value}}}}, opts).Decode(&mongoUser)
 	if err != nil {
 		return nil, err
 	}

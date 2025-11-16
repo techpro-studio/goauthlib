@@ -6,7 +6,7 @@ import (
 )
 
 type Repository interface {
-	UpsertForEntity(ctx context.Context, entity AuthorizationEntity) (*User, error)
+	UpsertForEntity(ctx context.Context, entity AuthorizationEntity, info map[string]any) (*User, error)
 	GetForEntity(ctx context.Context, entity AuthorizationEntity) *User
 	CreateForEntity(ctx context.Context, entity AuthorizationEntity) *User
 	GetForSocial(ctx context.Context, result *oauth.ProviderResult) *User

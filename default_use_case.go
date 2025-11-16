@@ -67,8 +67,8 @@ type DefaultUseCase struct {
 	config                     Config
 }
 
-func (useCase *DefaultUseCase) UpsertUser(ctx context.Context, entity AuthorizationEntity) (*Response, error) {
-	user, err := useCase.repository.UpsertForEntity(ctx, entity)
+func (useCase *DefaultUseCase) UpsertUser(ctx context.Context, entity AuthorizationEntity, info map[string]any) (*Response, error) {
+	user, err := useCase.repository.UpsertForEntity(ctx, entity, info)
 	if err != nil {
 		return nil, err
 	}

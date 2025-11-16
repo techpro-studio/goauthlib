@@ -12,7 +12,7 @@ type UseCase interface {
 	AuthenticateViaSocialProvider(ctx context.Context, payload SocialProviderPayload) (*Response, error)
 	SendCode(ctx context.Context, entity AuthorizationEntity) error
 	SendVerificationCode(ctx context.Context, user User, action string) error
-	UpsertUser(ctx context.Context, entity AuthorizationEntity) (*Response, error)
+	UpsertUser(ctx context.Context, entity AuthorizationEntity, info map[string]any) (*Response, error)
 	VerifyDelete(ctx context.Context, user User, code string) error
 	GetValidModelFromToken(ctx context.Context, token string) *User
 	AuthenticateWithCode(ctx context.Context, entity AuthorizationEntity, code string) (*Response, error)
