@@ -4,6 +4,7 @@ import (
 	"context"
 	"github.com/techpro-studio/goauthlib"
 	"github.com/techpro-studio/goauthlib/oauth"
+	"github.com/techpro-studio/gomongo"
 	"github.com/testcontainers/testcontainers-go/modules/mongodb"
 	"go.mongodb.org/mongo-driver/v2/bson"
 	"go.mongodb.org/mongo-driver/v2/mongo"
@@ -76,7 +77,7 @@ func TestUpsertForEntityCreatesUser(t *testing.T) {
 		Value: "+111",
 	}
 
-	user, err := repo.UpsertForEntity(ctx, entity, map[string]any{"name": "John"})
+	user, err := repo.UpsertForEntity(ctx, entity, map[string]any{"name": "John", "surname": "Some"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -95,6 +96,10 @@ func TestUpsertForEntityCreatesUser(t *testing.T) {
 	}
 
 	if user2.Info["name"] != "Updated" {
+		t.Fatalf("expected updated name, got: %+v", user2.Info)
+	}
+
+	if user2.Info["surname"] != "Some" {
 		t.Fatalf("expected updated name, got: %+v", user2.Info)
 	}
 }
@@ -225,7 +230,7 @@ func TestEnsureService(t *testing.T) {
 	// manually remove service to test re-add
 	repo.Client.Database(dbName).
 		Collection(userCollection).
-		UpdateOne(ctx, bson.M{"_id": user.ID}, bson.M{"$set": bson.M{"services": []string{}}})
+		UpdateOne(ctx, bson.M{"_id": gomongo.StrToObjId(&user.ID)}, bson.M{"$set": bson.M{"services": []string{}}})
 
 	added = repo.EnsureService(ctx, user.ID)
 	if !added {

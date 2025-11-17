@@ -2,6 +2,7 @@ package mongo
 
 import (
 	"context"
+	"fmt"
 	"github.com/techpro-studio/goauthlib"
 	"github.com/techpro-studio/goauthlib/oauth"
 	"github.com/techpro-studio/gohttplib/utils"
@@ -124,7 +125,9 @@ func (repo *Repository) UpsertForEntity(ctx context.Context, entity goauthlib.Au
 	var mongoUser mongoUser
 	setMap := bson.M{"deleted": false}
 	if info != nil && len(info) > 0 {
-		setMap["info"] = info
+		for k, v := range info {
+			setMap[fmt.Sprintf("info.%s", k)] = v
+		}
 	}
 	err := repo.Client.Database(dbName).Collection(userCollection).FindOneAndUpdate(ctx, bson.M{"entities.type": entity.Type, "entities.value": entity.Value}, bson.M{"$set": setMap, "$addToSet": bson.M{"services": repo.service}, "$setOnInsert": bson.M{"entities": bson.A{bson.M{"type": entity.Type, "value": entity.Value}}}}, opts).Decode(&mongoUser)
 	if err != nil {
