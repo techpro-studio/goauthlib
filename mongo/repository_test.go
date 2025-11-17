@@ -237,3 +237,40 @@ func TestEnsureService(t *testing.T) {
 		t.Fatal("expected service to be added")
 	}
 }
+
+func TestGetByIdList(t *testing.T) {
+	repo, cleanup := setup(t)
+	defer cleanup()
+
+	ctx := context.Background()
+
+	user := repo.CreateForEntity(ctx, goauthlib.AuthorizationEntity{
+		Type:  goauthlib.EntityTypeEmail,
+		Value: "ens@test.com",
+	})
+
+	user2 := repo.CreateForEntity(ctx, goauthlib.AuthorizationEntity{
+		Type:  goauthlib.EntityTypeEmail,
+		Value: "ens@test2.com",
+	})
+
+	// ensure service exists (already present)
+	added := repo.EnsureService(ctx, user.ID)
+	if added {
+		t.Fatal("expected false—service already exists")
+	}
+
+	// manually remove service to test re-add
+	users := repo.GetByIdList(ctx, []string{user.ID, user2.ID})
+
+	if len(users) != 2 {
+		t.Fatal("expected 2 users")
+	}
+
+	if users[0].ID != user.ID {
+		t.Fatal("expected user to have ID")
+	}
+	if users[1].ID != user2.ID {
+		t.Fatal("expected user to have ID")
+	}
+}
