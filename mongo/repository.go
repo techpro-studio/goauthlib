@@ -309,3 +309,18 @@ func (repo *Repository) GetById(ctx context.Context, id string) *goauthlib.User 
 	}
 	return repo.getOneUser(ctx, bson.M{"_id": objectID}, true)
 }
+
+func (repo *Repository) GetByIdList(ctx context.Context, idList []string) []*goauthlib.User {
+	result, err := repo.Client.
+		Database(dbName).
+		Collection(userCollection).Find(ctx, bson.M{"_id": bson.M{"$in": gomongo.StrListToObjIdList(idList)}}, nil)
+	if err != nil {
+		panic(err)
+	}
+	var users []*mongoUser
+	err = result.All(ctx, &users)
+	if err != nil {
+		panic(err)
+	}
+	return gomongo.SliceMap(users, toDomainUser)
+}
