@@ -2,24 +2,24 @@ package goauthlib
 
 import (
 	"context"
-	"crypto/sha3"
-	"encoding/hex"
 	"errors"
 	"fmt"
-	"github.com/dgrijalva/jwt-go"
-	"github.com/google/uuid"
+	"github.com/golang-jwt/jwt/v5"
+
 	"github.com/techpro-studio/goauthlib/oauth"
 	"github.com/techpro-studio/gohttplib"
 	"math/rand"
 )
 
 type Config struct {
-	sharedSecret               string
+	blinder                    string
+	signingMethod              jwt.SigningMethod
+	signingKey                 any
 	softDeleteUserIfNoServices bool
 }
 
-func NewConfig(sharedSecret string, softDeleteUserIfNoServices bool) *Config {
-	return &Config{sharedSecret: sharedSecret, softDeleteUserIfNoServices: softDeleteUserIfNoServices}
+func NewConfig(blinder string, signingMethod jwt.SigningMethod, signingKey any, softDeleteUserIfNoServices bool) *Config {
+	return &Config{blinder: blinder, signingMethod: signingMethod, signingKey: signingKey, softDeleteUserIfNoServices: softDeleteUserIfNoServices}
 }
 
 type OTPDelivery interface {
@@ -58,13 +58,11 @@ func (d DoNothingUseCaseCallback) OnRemoveServiceFrom(ctx context.Context, user 
 }
 
 type DefaultUseCase struct {
-	SocialProviders            map[string]oauth.SocialProvider
-	Deliveries                 map[string]OTPDelivery
-	tempTokenStorage           TempTokenStorage
-	tempTokenJWTSecretProvider TempTokenJWTSecretProvider
-	repository                 Repository
-	callback                   UserCaseCallback
-	config                     Config
+	SocialProviders map[string]oauth.SocialProvider
+	Deliveries      map[string]OTPDelivery
+	repository      Repository
+	callback        UserCaseCallback
+	config          Config
 }
 
 func (useCase *DefaultUseCase) UpsertUser(ctx context.Context, entity AuthorizationEntity, info map[string]any) (*Response, error) {
@@ -72,7 +70,7 @@ func (useCase *DefaultUseCase) UpsertUser(ctx context.Context, entity Authorizat
 	if err != nil {
 		return nil, err
 	}
-	token, err := GenerateTokenFromModel(*user, useCase.config.sharedSecret)
+	token, err := GenerateTokenFromModel(*user, useCase.config.blinder, useCase.config.signingMethod, useCase.config.signingKey)
 	if err != nil {
 		return nil, err
 	}
@@ -95,8 +93,8 @@ func (useCase *DefaultUseCase) RegisterOTPDelivery(key string, delivery OTPDeliv
 	useCase.Deliveries[key] = delivery
 }
 
-func NewDefaultUseCase(repository Repository, config Config, callback UserCaseCallback, tempTokenStorage TempTokenStorage, tempTokenJWTSecretProvider TempTokenJWTSecretProvider) *DefaultUseCase {
-	return &DefaultUseCase{repository: repository, SocialProviders: map[string]oauth.SocialProvider{}, Deliveries: map[string]OTPDelivery{}, config: config, callback: callback, tempTokenStorage: tempTokenStorage, tempTokenJWTSecretProvider: tempTokenJWTSecretProvider}
+func NewDefaultUseCase(repository Repository, config Config, callback UserCaseCallback) *DefaultUseCase {
+	return &DefaultUseCase{repository: repository, SocialProviders: map[string]oauth.SocialProvider{}, Deliveries: map[string]OTPDelivery{}, config: config, callback: callback}
 }
 
 func (useCase *DefaultUseCase) RegisterSocialProvider(key string, provider oauth.SocialProvider) {
@@ -171,7 +169,7 @@ func (useCase *DefaultUseCase) getInfoFromProvider(ctx context.Context, payload 
 }
 
 func (useCase *DefaultUseCase) generateResponseFor(usr *User, userInfo map[string]interface{}) (*Response, error) {
-	jsonWebToken, err := GenerateTokenFromModel(*usr, useCase.config.sharedSecret)
+	jsonWebToken, err := GenerateTokenFromModel(*usr, useCase.config.blinder, useCase.config.signingMethod, useCase.config.signingKey)
 	if err != nil {
 		return nil, gohttplib.HTTP400(err.Error())
 	}
@@ -368,86 +366,6 @@ func (useCase *DefaultUseCase) findNewEntitiesInSocialProviderResult(old []Autho
 	return newEntities
 }
 
-func (useCase *DefaultUseCase) GetValidModelFromToken(ctx context.Context, token string) *User {
-	userData, err := useCase.getUserDataFromToken(token)
-	if err != nil {
-		return nil
-	}
-	model := useCase.repository.GetById(ctx, userData["user"].(map[string]any)["id"].(string))
-	if model == nil {
-		return nil
-	}
-	if GenerateTokenHash(*model, useCase.config.sharedSecret) != userData["hash"] {
-		return nil
-	}
-	return model
-}
-
-func (useCase *DefaultUseCase) getUserDataFromToken(token string) (map[string]interface{}, error) {
-
-	tokenObj, err := jwt.Parse(token, func(token *jwt.Token) (interface{}, error) {
-		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
-			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
-		}
-		return []byte(useCase.config.sharedSecret), nil
-	})
-	if err != nil {
-		return nil, err
-	}
-	claims, ok := tokenObj.Claims.(jwt.MapClaims)
-	if ok && tokenObj.Valid {
-		return claims, nil
-	}
-	return nil, errors.New("failed jwt")
-}
-
-func (useCase *DefaultUseCase) AuthenticateWithTempToken(ctx context.Context, token string) (*Response, error) {
-	tokenObj, err := jwt.Parse(token, func(token *jwt.Token) (interface{}, error) {
-		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
-			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
-		}
-		return []byte(useCase.tempTokenJWTSecretProvider.GetTempTokenJWTSecret()), nil
-	})
-	if err != nil {
-		return nil, err
-	}
-	claims, ok := tokenObj.Claims.(jwt.MapClaims)
-	if ok && tokenObj.Valid {
-		userId := claims["user_id"].(string)
-		tempToken := claims["token"].(string)
-		fetchedUserId, err := useCase.tempTokenStorage.GetUserIdForToken(ctx, tempToken)
-		if err != nil {
-			return nil, gohttplib.HTTP400(err.Error())
-		}
-		if fetchedUserId != userId {
-			return nil, gohttplib.HTTP400("Invalid token")
-		}
-		usr := useCase.repository.GetById(ctx, userId)
-		if usr == nil {
-			return nil, gohttplib.HTTP404("User not found")
-		}
-		authToken, err := GenerateTokenFromModel(*usr, useCase.config.sharedSecret)
-		if err != nil {
-			return nil, gohttplib.HTTP400(err.Error())
-		}
-		return &Response{
-			Token:    authToken,
-			User:     *usr,
-			UserInfo: nil,
-		}, nil
-	}
-	return nil, gohttplib.HTTP400("Invalid token")
-}
-
-func (useCase *DefaultUseCase) GenerateTempTokenFor(ctx context.Context, usr User) (string, error) {
-	token := uuid.New().String()
-	err := useCase.tempTokenStorage.SetTempTokenForUser(ctx, token, usr.ID, 120)
-	if err != nil {
-		return "", err
-	}
-	return token, nil
-}
-
 func (useCase *DefaultUseCase) ExtractAvatarUrlFromSocialProvider(ctx context.Context, userId string) *string {
 	user := useCase.repository.GetById(ctx, userId)
 	if user == nil {
@@ -469,40 +387,4 @@ func (useCase *DefaultUseCase) ExtractAvatarUrlFromSocialProvider(ctx context.Co
 		return url
 	}
 	return nil
-}
-
-func GenerateTokenFromModel(model User, ss string) (string, error) {
-	hash := GenerateTokenHash(model, ss)
-
-	claims := struct {
-		Hash string `json:"hash"`
-		User User   `json:"user"`
-		jwt.StandardClaims
-	}{hash,
-		model,
-		jwt.StandardClaims{
-			Issuer: "auth",
-		},
-	}
-	tokenObj := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-
-	token, err := tokenObj.SignedString([]byte(ss))
-	if err != nil {
-		return "", err
-	}
-	return token, nil
-}
-
-func GenerateTokenHash(model User, ss string) string {
-	sha := sha3.New256()
-	bytes, err := hex.DecodeString(model.ID)
-	if err != nil {
-		panic(err)
-	}
-	bytes = append(bytes, []byte(ss)...)
-	_, err = sha.Write(bytes)
-	if err != nil {
-		panic(err)
-	}
-	return hex.EncodeToString(sha.Sum(nil))
 }

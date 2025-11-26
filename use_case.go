@@ -14,7 +14,6 @@ type UseCase interface {
 	SendVerificationCode(ctx context.Context, user User, action string) error
 	UpsertUser(ctx context.Context, entity AuthorizationEntity, info map[string]any) (*Response, error)
 	VerifyDelete(ctx context.Context, user User, code string) error
-	GetValidModelFromToken(ctx context.Context, token string) *User
 	AuthenticateWithCode(ctx context.Context, entity AuthorizationEntity, code string) (*Response, error)
 	RemoveAuthenticationEntity(ctx context.Context, user User, entity AuthorizationEntity) error
 	SendCodeWithUser(ctx context.Context, user User, entity AuthorizationEntity) error
@@ -22,7 +21,5 @@ type UseCase interface {
 	VerifyAuthenticationEntity(ctx context.Context, user *User, entity AuthorizationEntity, code string) (*User, error)
 	PatchUserInfo(ctx context.Context, usr *User, body map[string]interface{}) (*User, error)
 	ForceDelete(ctx context.Context, usr User) error
-	AuthenticateWithTempToken(ctx context.Context, token string) (*Response, error)
-	GenerateTempTokenFor(ctx context.Context, usr User) (string, error)
 	ExtractAvatarUrlFromSocialProvider(ctx context.Context, userId string) *string
 }

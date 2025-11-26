@@ -9,7 +9,7 @@ import (
 
 const CurrentUserContextKey = "current_user_key"
 
-func UserMiddlewareFactory(useCase UseCase) gohttplib.Middleware {
+func UserMiddlewareFactory(config Config) gohttplib.Middleware {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 			tokenStr := GetTokenFromRequest(req)
@@ -17,8 +17,11 @@ func UserMiddlewareFactory(useCase UseCase) gohttplib.Middleware {
 				gohttplib.HTTP401().Write(w)
 				return
 			}
-			user := useCase.GetValidModelFromToken(req.Context(), tokenStr)
-			if user ==  nil{
+			user, err := GetValidUserFromToken(tokenStr, config)
+			if err != nil {
+				gohttplib.HTTP401().Write(w)
+			}
+			if user == nil {
 				gohttplib.HTTP401().Write(w)
 				return
 			}
@@ -28,14 +31,13 @@ func UserMiddlewareFactory(useCase UseCase) gohttplib.Middleware {
 	}
 }
 
-
-func GetTokenFromRequest(req *http.Request)string{
+func GetTokenFromRequest(req *http.Request) string {
 	tokenStr := ""
 	if AuthHeader := req.Header.Get("Authorization"); AuthHeader != "" {
 		tokenStr = strings.Split(AuthHeader, " ")[1]
 	}
 	if tokenStr == "" {
-		token :=  gohttplib.GetParameterFromURLInRequest(req, "token")
+		token := gohttplib.GetParameterFromURLInRequest(req, "token")
 		if token != nil {
 			tokenStr = *token
 		}
@@ -45,7 +47,7 @@ func GetTokenFromRequest(req *http.Request)string{
 
 func GetUserFromRequestWithPanic(req *http.Request) User {
 	usr := GetUserFromRequest(req)
-	if usr == nil{
+	if usr == nil {
 		panic("No current user")
 	}
 	return *usr
@@ -58,4 +60,3 @@ func GetUserFromRequest(req *http.Request) *User {
 	}
 	return user
 }
-

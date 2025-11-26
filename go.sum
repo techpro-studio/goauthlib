@@ -8,6 +8,8 @@ github.com/Microsoft/go-winio v0.6.2 h1:F2VQgta7ecxGYO8k3ZZz3RS8fVIXVxONVUPlNERo
 github.com/Microsoft/go-winio v0.6.2/go.mod h1:yd8OoFMLzJbo9gZq8j5qaps8bJ9aShtEA8Ipt1oGCvU=
 github.com/Timothylock/go-signin-with-apple v0.2.3 h1:t8y3cVW/L5+s4RSaWn4NC5VToLqZDpwkLsrcm9bGhhE=
 github.com/Timothylock/go-signin-with-apple v0.2.3/go.mod h1:drDUeawmKp2eRdbXh99+5HKbGT1O1wLA+1LNN4+cs9w=
+github.com/Timothylock/go-signin-with-apple v0.2.7 h1:j38rQxo+MMJbQVtlpWUYhTHGb2gFEMOIQT6V2zQpxAA=
+github.com/Timothylock/go-signin-with-apple v0.2.7/go.mod h1:1aIY2zPziBK23e6n5pb1mbIrlua3zxE+Uaxoc8DOsTo=
 github.com/cenkalti/backoff/v4 v4.3.0 h1:MyRJ/UdXutAwSAT+s3wNd7MfTIcy71VQueUuFK343L8=
 github.com/cenkalti/backoff/v4 v4.3.0/go.mod h1:Y3VNntkOUPxTVeUxJ/G5vcM//AlwfmyYozVcomhLiZE=
 github.com/containerd/errdefs v1.0.0 h1:tg5yIfIlQIrxYtu9ajqY42W3lpS19XqdxRQeEwYG8PI=
@@ -131,6 +133,8 @@ github.com/techpro-studio/gohttplib v0.0.3 h1:6jPKD8lwfKZLsn7MD1rJ3u132yBwx0Z/EF
 github.com/techpro-studio/gohttplib v0.0.3/go.mod h1:TliTozx4sfvMaQK2ExDX3n0Je0b7g6i6NwuimTYgVEs=
 github.com/techpro-studio/gomongo v1.0.0 h1:2TkxpWEseLdxukQKe9egoxWUysMGXGVkW0uBgimnsVY=
 github.com/techpro-studio/gomongo v1.0.0/go.mod h1:WqDIM4oNC9kxT4vnZs4OCnsU2ZSqt9GmkQJt6Aqo+AA=
+github.com/techpro-studio/gomongo v1.0.1 h1:nOnt8JIQjgHo3XisCxu/jBpCrYb3piPiVNSRskAOdc8=
+github.com/techpro-studio/gomongo v1.0.1/go.mod h1:WqDIM4oNC9kxT4vnZs4OCnsU2ZSqt9GmkQJt6Aqo+AA=
 github.com/testcontainers/testcontainers-go v0.40.0 h1:pSdJYLOVgLE8YdUY2FHQ1Fxu+aMnb6JfVz1mxk7OeMU=
 github.com/testcontainers/testcontainers-go v0.40.0/go.mod h1:FSXV5KQtX2HAMlm7U3APNyLkkap35zNLxukw9oBi/MY=
 github.com/testcontainers/testcontainers-go/modules/mongodb v0.40.0 h1:z/1qHeliTLDKNaJ7uOHOx1FjwghbcbYfga4dTFkF0hU=
@@ -157,6 +161,8 @@ github.com/yusufpapurcu/wmi v1.2.4 h1:zFUKzehAFReQwLys1b/iSMl+JQGSCSjtVqQn9bBrPo
 github.com/yusufpapurcu/wmi v1.2.4/go.mod h1:SBZ9tNy3G9/m5Oi98Zks0QjeHVDvuK0qfxQmPyzfmi0=
 go.mongodb.org/mongo-driver/v2 v2.3.1 h1:WrCgSzO7dh1/FrePud9dK5fKNZOE97q5EQimGkos7Wo=
 go.mongodb.org/mongo-driver/v2 v2.3.1/go.mod h1:jHeEDJHJq7tm6ZF45Issun9dbogjfnPySb1vXA7EeAI=
+go.mongodb.org/mongo-driver/v2 v2.4.0 h1:Oq6BmUAAFTzMeh6AonuDlgZMuAuEiUxoAD1koK5MuFo=
+go.mongodb.org/mongo-driver/v2 v2.4.0/go.mod h1:jHeEDJHJq7tm6ZF45Issun9dbogjfnPySb1vXA7EeAI=
 go.opentelemetry.io/auto/sdk v1.1.0 h1:cH53jehLUN6UFLY71z+NDOiNJqDdPRaXzTel0sJySYA=
 go.opentelemetry.io/auto/sdk v1.1.0/go.mod h1:3wSPjt5PWp2RhlCcmmOial7AvC4DQqZb7a7wCow3W8A=
 go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.49.0 h1:jq9TW8u3so/bN+JPT166wjOI6/vQPF6Xe7nMNIltagk=

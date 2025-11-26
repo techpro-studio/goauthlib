@@ -3,15 +3,15 @@ module github.com/techpro-studio/goauthlib
 go 1.24.0
 
 require (
-	github.com/Timothylock/go-signin-with-apple v0.2.3
+	github.com/Timothylock/go-signin-with-apple v0.2.7
 	github.com/dgrijalva/jwt-go v3.2.0+incompatible
 	github.com/go-telegram-bot-api/telegram-bot-api/v5 v5.5.1
 	github.com/google/uuid v1.6.0
 	github.com/michimani/gotwi v0.16.1
 	github.com/techpro-studio/gohttplib v0.0.3
-	github.com/techpro-studio/gomongo v1.0.0
+	github.com/techpro-studio/gomongo v1.0.1
 	github.com/testcontainers/testcontainers-go/modules/mongodb v0.40.0
-	go.mongodb.org/mongo-driver/v2 v2.3.1
+	go.mongodb.org/mongo-driver/v2 v2.4.0
 	golang.org/x/oauth2 v0.32.0
 )
 

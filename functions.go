@@ -1,75 +1,134 @@
 package goauthlib
 
 import (
+	"crypto/sha3"
+	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/dgrijalva/jwt-go"
+	"github.com/golang-jwt/jwt/v5"
 	"log"
 	"net/http"
 	"strings"
 )
 
-func SafeExtractUserIdFromHeader(h http.Header, secret string) *string {
-	// Check if Authorization header exists
-	authHeader, ok := h["Authorization"]
-	if !ok || len(authHeader) == 0 {
-		log.Printf("Authorization header is missing")
-		return nil
+func GenerateTokenFromModel(model User, blinder string, signingMethod jwt.SigningMethod, signingKey any) (string, error) {
+	hash := GenerateTokenHash(model, blinder)
+
+	claims := struct {
+		Hash string `json:"hash"`
+		User User   `json:"user"`
+		jwt.RegisteredClaims
+	}{hash,
+		model,
+		jwt.RegisteredClaims{
+			Issuer: "auth",
+		},
 	}
+	tokenObj := jwt.NewWithClaims(signingMethod, claims)
 
-	// Split the Authorization header into parts
-	tokenParts := strings.Split(authHeader[0], " ")
-	if len(tokenParts) != 2 || tokenParts[0] != "JWT" {
-		log.Printf("Invalid Authorization header format")
-		return nil
+	token, err := tokenObj.SignedString(signingKey)
+	if err != nil {
+		return "", err
 	}
+	return token, nil
+}
 
-	token := tokenParts[1]
-
-	// Parse the JWT token
-	tokenObj, err := jwt.ParseWithClaims(token, &jwt.MapClaims{}, func(token *jwt.Token) (interface{}, error) {
-		// Ensure the token uses the expected signing method
-		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+func GetClaimsFromToken(token string, currentSigningMethod jwt.SigningMethod, currentSigningKey any) (map[string]any, error) {
+	tokenObj, err := jwt.ParseWithClaims(token, &jwt.MapClaims{}, func(token *jwt.Token) (any, error) {
+		if token.Method.Alg() != currentSigningMethod.Alg() {
 			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
 		}
-		return []byte(secret), nil
+		return currentSigningKey, nil
 	})
 
 	if err != nil {
-		var ve *jwt.ValidationError
-		if errors.As(err, &ve) {
-			if ve.Errors&jwt.ValidationErrorExpired != 0 {
-				log.Printf("Token is expired")
-				return nil
-			}
+		if errors.Is(err, jwt.ErrTokenExpired) {
+			log.Printf("Token is expired")
+			return nil, err
 		}
+
 		log.Printf("Failed to parse token: %s", err.Error())
-		return nil
+		return nil, err
 	}
 
 	if !tokenObj.Valid {
 		log.Printf("Token is invalid")
-		return nil
+		return nil, errors.New("invalid token")
 	}
 
 	// Safely access the claims
 	claims, ok := tokenObj.Claims.(*jwt.MapClaims)
 	if !ok {
 		log.Printf("Invalid claims type")
-		return nil
+	}
+	return *claims, nil
+}
+
+func GenerateTokenHash(model User, blinder string) string {
+	sha := sha3.New256()
+	bytes, err := hex.DecodeString(model.ID)
+	if err != nil {
+		panic(err)
+	}
+	bytes = append(bytes, []byte(blinder)...)
+	_, err = sha.Write(bytes)
+	if err != nil {
+		panic(err)
+	}
+	return hex.EncodeToString(sha.Sum(nil))
+}
+
+func SafeExtractUserIdFromHeader(h http.Header, currentSigningMethod jwt.SigningMethod, signingKey any) (string, error) {
+	// Check if Authorization header exists
+	authHeader, ok := h["Authorization"]
+	if !ok || len(authHeader) == 0 {
+		return "", errors.New("authorization header is missing")
 	}
 
-	user, ok := (*claims)["user"].(map[string]interface{})
+	// Split the Authorization header into parts
+	tokenParts := strings.Split(authHeader[0], " ")
+	if len(tokenParts) != 2 || tokenParts[0] != "JWT" {
+		return "", errors.New("invalid Authorization header format")
+	}
+
+	token := tokenParts[1]
+
+	claims, err := GetClaimsFromToken(token, currentSigningMethod, signingKey)
+	if err != nil {
+		return "", err
+	}
+
+	user, ok := claims["user"].(map[string]any)
 	if !ok {
-		log.Printf("User claim is missing or invalid")
-		return nil
+		return "", errors.New("user claim is missing or invalid")
 	}
 
 	userIdFromJwt, ok := user["id"].(string)
 	if !ok {
-		log.Printf("User ID is missing or invalid")
-		return nil
+		return "", errors.New("user ID is missing or invalid")
 	}
 
-	return &userIdFromJwt
+	return userIdFromJwt, nil
+}
+
+func GetValidUserFromToken(token string, config Config) (*User, error) {
+	claims, err := GetClaimsFromToken(token, config.signingMethod, config.signingKey)
+	if err != nil {
+		return nil, err
+	}
+	userBytes, err := json.Marshal(claims["user"])
+	if err != nil {
+		return nil, err
+	}
+	var user User
+	err = json.Unmarshal(userBytes, &user)
+	if err != nil {
+		return nil, err
+	}
+
+	if GenerateTokenHash(user, config.blinder) != claims["hash"] {
+		return nil, errors.New("invalid token hash")
+	}
+	return &user, nil
 }
