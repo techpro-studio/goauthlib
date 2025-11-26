@@ -56,7 +56,7 @@ func (provider *FacebookProvider) getRawData(token string, photoDimension int) (
 	buf, _ := ioutil.ReadAll(resp.Body)
 	err = json.Unmarshal(buf, &response)
 	if err != nil {
-		log.Printf(string(buf))
+		log.Printf("%s", string(buf))
 		return nil, err
 	}
 	response["avatar"] = fmt.Sprintf("https://graph.facebook.com/%s/picture?type=square&width=%d&height=%d", response["id"], photoDimension, photoDimension)
