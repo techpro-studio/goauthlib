@@ -4,23 +4,10 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/golang-jwt/jwt/v5"
-
 	"github.com/techpro-studio/goauthlib/oauth"
 	"github.com/techpro-studio/gohttplib"
 	"math/rand"
 )
-
-type Config struct {
-	blinder                    string
-	signingMethod              jwt.SigningMethod
-	signingKey                 any
-	softDeleteUserIfNoServices bool
-}
-
-func NewConfig(blinder string, signingMethod jwt.SigningMethod, signingKey any, softDeleteUserIfNoServices bool) *Config {
-	return &Config{blinder: blinder, signingMethod: signingMethod, signingKey: signingKey, softDeleteUserIfNoServices: softDeleteUserIfNoServices}
-}
 
 type OTPDelivery interface {
 	SendOTP(ctx context.Context, destination, otp string) error
@@ -58,11 +45,16 @@ func (d DoNothingUseCaseCallback) OnRemoveServiceFrom(ctx context.Context, user 
 }
 
 type DefaultUseCase struct {
-	SocialProviders map[string]oauth.SocialProvider
-	Deliveries      map[string]OTPDelivery
-	repository      Repository
-	callback        UserCaseCallback
-	config          Config
+	SocialProviders            map[string]oauth.SocialProvider
+	Deliveries                 map[string]OTPDelivery
+	repository                 Repository
+	callback                   UserCaseCallback
+	jwtConfig                  JWTConfig
+	softDeleteUserIfNoServices bool
+}
+
+func (useCase *DefaultUseCase) SetSoftDeleteUserIfNoServices(softDeleteUserIfNoServices bool) {
+	useCase.softDeleteUserIfNoServices = softDeleteUserIfNoServices
 }
 
 func (useCase *DefaultUseCase) UpsertUser(ctx context.Context, entity AuthorizationEntity, info map[string]any) (*Response, error) {
@@ -70,7 +62,7 @@ func (useCase *DefaultUseCase) UpsertUser(ctx context.Context, entity Authorizat
 	if err != nil {
 		return nil, err
 	}
-	token, err := GenerateTokenFromModel(*user, useCase.config.blinder, useCase.config.signingMethod, useCase.config.signingKey)
+	token, err := useCase.jwtConfig.GenerateTokenFromModel(*user)
 	if err != nil {
 		return nil, err
 	}
@@ -93,8 +85,8 @@ func (useCase *DefaultUseCase) RegisterOTPDelivery(key string, delivery OTPDeliv
 	useCase.Deliveries[key] = delivery
 }
 
-func NewDefaultUseCase(repository Repository, config Config, callback UserCaseCallback) *DefaultUseCase {
-	return &DefaultUseCase{repository: repository, SocialProviders: map[string]oauth.SocialProvider{}, Deliveries: map[string]OTPDelivery{}, config: config, callback: callback}
+func NewDefaultUseCase(repository Repository, config JWTConfig, callback UserCaseCallback) *DefaultUseCase {
+	return &DefaultUseCase{repository: repository, SocialProviders: map[string]oauth.SocialProvider{}, Deliveries: map[string]OTPDelivery{}, jwtConfig: config, callback: callback}
 }
 
 func (useCase *DefaultUseCase) RegisterSocialProvider(key string, provider oauth.SocialProvider) {
@@ -169,7 +161,7 @@ func (useCase *DefaultUseCase) getInfoFromProvider(ctx context.Context, payload 
 }
 
 func (useCase *DefaultUseCase) generateResponseFor(usr *User, userInfo map[string]interface{}) (*Response, error) {
-	jsonWebToken, err := GenerateTokenFromModel(*usr, useCase.config.blinder, useCase.config.signingMethod, useCase.config.signingKey)
+	jsonWebToken, err := useCase.jwtConfig.GenerateTokenFromModel(*usr)
 	if err != nil {
 		return nil, gohttplib.HTTP400(err.Error())
 	}
@@ -189,7 +181,7 @@ func (useCase *DefaultUseCase) VerifyDelete(ctx context.Context, user User, code
 }
 
 func (useCase *DefaultUseCase) ForceDelete(ctx context.Context, user User) error {
-	useCase.repository.RemoveService(ctx, user.ID, useCase.config.softDeleteUserIfNoServices, func(ctx context.Context, userId string) error {
+	useCase.repository.RemoveService(ctx, user.ID, useCase.softDeleteUserIfNoServices, func(ctx context.Context, userId string) error {
 		return useCase.callback.OnRemoveServiceFrom(ctx, &user)
 	})
 	for _, entity := range user.Entities {

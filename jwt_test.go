@@ -14,15 +14,20 @@ import (
 
 func TestGenerateTokenAndValidate(t *testing.T) {
 	user := User{ID: bson.NewObjectID().Hex()}
-	blinder := "test-blinder"
-	signingKey := []byte("my-secret-key")
 
-	token, err := GenerateTokenFromModel(user, blinder, jwt.SigningMethodHS256, signingKey)
+	jwtCfg := JWTConfig{
+		signingMethod:   jwt.SigningMethodHS256,
+		signingKey:      []byte("my-secret-key"),
+		verificationKey: []byte("my-secret-key"),
+		blinder:         "test-blinder",
+	}
+
+	token, err := jwtCfg.GenerateTokenFromModel(user)
 	if err != nil {
 		t.Fatalf("failed to generate token: %v", err)
 	}
 
-	claims, err := GetClaimsFromToken(token, jwt.SigningMethodHS256, signingKey)
+	claims, err := jwtCfg.GetClaimsFromToken(token)
 	if err != nil {
 		t.Fatalf("failed to parse token: %v", err)
 	}
@@ -49,10 +54,14 @@ func TestGenerateTokenHashConsistency(t *testing.T) {
 
 func TestSafeExtractUserIdFromHeader(t *testing.T) {
 	user := User{ID: bson.NewObjectID().Hex()}
-	blinder := "blinder-header"
-	signingKey := []byte("header-secret")
+	jwtCfg := JWTConfig{
+		signingMethod:   jwt.SigningMethodHS256,
+		signingKey:      []byte("my-secret-key"),
+		verificationKey: []byte("my-secret-key"),
+		blinder:         "test-blinder",
+	}
 
-	token, err := GenerateTokenFromModel(user, blinder, jwt.SigningMethodHS256, signingKey)
+	token, err := jwtCfg.GenerateTokenFromModel(user)
 	if err != nil {
 		t.Fatalf("failed to generate token: %v", err)
 	}
@@ -60,7 +69,7 @@ func TestSafeExtractUserIdFromHeader(t *testing.T) {
 	header := http.Header{}
 	header.Set("Authorization", "JWT "+token)
 
-	userId, err := SafeExtractUserIdFromHeader(header, jwt.SigningMethodHS256, signingKey)
+	userId, err := jwtCfg.SafeExtractUserIdFromHeader(header)
 	if err != nil {
 		t.Fatalf("SafeExtractUserIdFromHeader failed: %v", err)
 	}
@@ -72,20 +81,20 @@ func TestSafeExtractUserIdFromHeader(t *testing.T) {
 
 func TestGetValidUserFromToken(t *testing.T) {
 	user := User{ID: bson.NewObjectID().Hex()}
-	blinder := "blinder-valid"
-	signingKey := []byte("key-valid")
-	config := Config{
-		signingMethod: jwt.SigningMethodHS256,
-		signingKey:    signingKey,
-		blinder:       blinder,
+
+	jwtCfg := JWTConfig{
+		signingMethod:   jwt.SigningMethodHS256,
+		signingKey:      []byte("my-secret-key"),
+		verificationKey: []byte("my-secret-key"),
+		blinder:         "test-blinder",
 	}
 
-	token, err := GenerateTokenFromModel(user, blinder, jwt.SigningMethodHS256, []byte(signingKey))
+	token, err := jwtCfg.GenerateTokenFromModel(user)
 	if err != nil {
 		t.Fatalf("failed to generate token: %v", err)
 	}
 
-	validUser, err := GetValidUserFromToken(token, config)
+	validUser, err := jwtCfg.GetValidUserFromToken(token)
 	if err != nil {
 		t.Fatalf("GetValidUserFromToken failed: %v", err)
 	}
@@ -116,7 +125,14 @@ func TestExpiredToken(t *testing.T) {
 	tokenObj := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 	token, _ := tokenObj.SignedString(signingKey)
 
-	_, err := GetClaimsFromToken(token, jwt.SigningMethodHS256, signingKey)
+	jwtCfg := JWTConfig{
+		signingMethod:   jwt.SigningMethodHS256,
+		signingKey:      signingKey,
+		verificationKey: signingKey,
+		blinder:         blinder,
+	}
+
+	_, err := jwtCfg.GetClaimsFromToken(token)
 	if err == nil {
 		t.Error("expected error for expired token, got nil")
 	}
@@ -124,13 +140,19 @@ func TestExpiredToken(t *testing.T) {
 
 func TestInvalidAuthorizationHeader(t *testing.T) {
 	header := http.Header{}
-	_, err := SafeExtractUserIdFromHeader(header, jwt.SigningMethodHS256, []byte("key"))
+	jwtCfg := JWTConfig{
+		signingMethod:   jwt.SigningMethodHS256,
+		signingKey:      []byte("key"),
+		verificationKey: []byte("key"),
+		blinder:         "some",
+	}
+	_, err := jwtCfg.SafeExtractUserIdFromHeader(header)
 	if err == nil {
 		t.Error("expected error for missing header")
 	}
 
 	header.Set("Authorization", "Bearer xyz")
-	_, err = SafeExtractUserIdFromHeader(header, jwt.SigningMethodHS256, []byte("key"))
+	_, err = jwtCfg.SafeExtractUserIdFromHeader(header)
 	if err == nil {
 		t.Error("expected error for invalid header format")
 	}
@@ -144,15 +166,20 @@ func TestGenerateTokenAndValidateEd25519(t *testing.T) {
 	}
 
 	user := User{ID: bson.NewObjectID().Hex()}
-	blinder := "ed25519-blinder"
+	jwtCfg := JWTConfig{
+		signingMethod:   jwt.SigningMethodEdDSA,
+		signingKey:      privateKey,
+		verificationKey: publicKey,
+		blinder:         "test-blinder",
+	}
 
 	// Use jwt.SigningMethodEdDSA for Ed25519
-	token, err := GenerateTokenFromModel(user, blinder, jwt.SigningMethodEdDSA, privateKey)
+	token, err := jwtCfg.GenerateTokenFromModel(user)
 	if err != nil {
 		t.Fatalf("failed to generate Ed25519 token: %v", err)
 	}
 
-	claims, err := GetClaimsFromToken(token, jwt.SigningMethodEdDSA, publicKey)
+	claims, err := jwtCfg.GetClaimsFromToken(token)
 	if err != nil {
 		t.Fatalf("failed to parse Ed25519 token: %v", err)
 	}
@@ -164,14 +191,7 @@ func TestGenerateTokenAndValidateEd25519(t *testing.T) {
 		t.Error("hash claim is empty in Ed25519 token")
 	}
 
-	// Test GetValidUserFromToken with Ed25519 keys
-	config := Config{
-		signingMethod: jwt.SigningMethodEdDSA,
-		signingKey:    publicKey,
-		blinder:       blinder,
-	}
-
-	validUser, err := GetValidUserFromToken(token, config)
+	validUser, err := jwtCfg.GetValidUserFromToken(token)
 	if err != nil {
 		t.Fatalf("GetValidUserFromToken failed for Ed25519 token: %v", err)
 	}
@@ -184,9 +204,21 @@ func TestGenerateTokenAndValidateEd25519(t *testing.T) {
 func TestCornerCases(t *testing.T) {
 	// Setup keys and user
 	hsKey := []byte("corner-case-key")
+
+	hmacJWtCfg := JWTConfig{
+		signingMethod:   jwt.SigningMethodHS256,
+		signingKey:      hsKey,
+		verificationKey: hsKey,
+	}
+
 	edPub, edPriv, err := ed25519.GenerateKey(nil)
 	if err != nil {
 		t.Fatalf("failed to generate Ed25519 keys: %v", err)
+	}
+	edJwtCFG := JWTConfig{
+		signingMethod:   jwt.SigningMethodEdDSA,
+		signingKey:      edPriv,
+		verificationKey: edPub,
 	}
 
 	emptyUser := User{ID: ""}
@@ -199,43 +231,35 @@ func TestCornerCases(t *testing.T) {
 		"!@#$%^&*()_+-=[]{}|;':,.<>/?",
 	}
 
-	signingMethods := []jwt.SigningMethod{
-		jwt.SigningMethodHS256,
-		jwt.SigningMethodEdDSA,
+	jwtCfgs := []JWTConfig{
+		hmacJWtCfg,
+		edJwtCFG,
 	}
 
-	for _, sm := range signingMethods {
+	for _, jwtCfg := range jwtCfgs {
 		for _, blinder := range blinders {
 			// Select key based on signing method
-			var privKey any
-			var pubKey any
-			if sm == jwt.SigningMethodHS256 {
-				privKey = hsKey
-				pubKey = hsKey
-			} else {
-				privKey = edPriv
-				pubKey = edPub
-			}
+			jwtCfg.blinder = blinder
 
 			// Test empty user ID token generation and validation
-			token, err := GenerateTokenFromModel(emptyUser, blinder, sm, privKey)
+			token, err := jwtCfg.GenerateTokenFromModel(emptyUser)
 			if err != nil {
-				t.Errorf("failed to generate token with empty user ID, method %v, blinder '%s': %v", sm.Alg(), blinder, err)
+				t.Errorf("failed to generate token with empty user ID, method %v, blinder '%s': %v", jwtCfg.signingMethod.Alg(), blinder, err)
 				continue
 			}
-			claims, err := GetClaimsFromToken(token, sm, pubKey)
+			claims, err := jwtCfg.GetClaimsFromToken(token)
 			if err != nil {
-				t.Errorf("failed to parse token with empty user ID, method %v, blinder '%s': %v", sm.Alg(), blinder, err)
+				t.Errorf("failed to parse token with empty user ID, method %v, blinder '%s': %v", jwtCfg.signingMethod.Alg(), blinder, err)
 				continue
 			}
 			if claims["user"].(map[string]any)["id"] != "" {
-				t.Errorf("expected empty user ID, got %v, method %v, blinder '%s'", claims["user"].(map[string]any)["id"], sm.Alg(), blinder)
+				t.Errorf("expected empty user ID, got %v, method %v, blinder '%s'", claims["user"].(map[string]any)["id"], jwtCfg.signingMethod.Alg(), blinder)
 			}
 
 			// Test normal user with blinder edge cases
-			token, err = GenerateTokenFromModel(normalUser, blinder, sm, privKey)
+			token, err = jwtCfg.GenerateTokenFromModel(normalUser)
 			if err != nil {
-				t.Errorf("failed to generate token normal user, method %v, blinder '%s': %v", sm.Alg(), blinder, err)
+				t.Errorf("failed to generate token normal user, method %v, blinder '%s': %v", jwtCfg.signingMethod.Alg(), blinder, err)
 				continue
 			}
 
@@ -249,22 +273,22 @@ func TestCornerCases(t *testing.T) {
 			}
 
 			for _, invalidToken := range invalidTokens {
-				_, err := GetClaimsFromToken(invalidToken, sm, pubKey)
+				_, err := jwtCfg.GetClaimsFromToken(invalidToken)
 				if err == nil {
-					t.Errorf("expected error for invalid token '%s', method %v", invalidToken, sm.Alg())
+					t.Errorf("expected error for invalid token '%s', method %v", invalidToken, jwtCfg.signingMethod.Alg())
 				}
 			}
 
 			// Generate valid token and tamper with hash claim to test hash mismatch
-			token, err = GenerateTokenFromModel(normalUser, blinder, sm, privKey)
+			token, err = jwtCfg.GenerateTokenFromModel(normalUser)
 			if err != nil {
-				t.Errorf("failed to generate token for hash mismatch test, method %v, blinder '%s': %v", sm.Alg(), blinder, err)
+				t.Errorf("failed to generate token for hash mismatch test, method %v, blinder '%s': %v", jwtCfg.signingMethod.Alg(), blinder, err)
 				continue
 			}
 
-			claims, err = GetClaimsFromToken(token, sm, pubKey)
+			claims, err = jwtCfg.GetClaimsFromToken(token)
 			if err != nil {
-				t.Errorf("failed to parse token for hash mismatch test, method %v, blinder '%s': %v", sm.Alg(), blinder, err)
+				t.Errorf("failed to parse token for hash mismatch test, method %v, blinder '%s': %v", jwtCfg.signingMethod.Alg(), blinder, err)
 				continue
 			}
 
@@ -272,51 +296,54 @@ func TestCornerCases(t *testing.T) {
 			claims["hash"] = "invalidhash"
 
 			// Re-encode token with modified claims (only works for HS256 here)
-			if sm == jwt.SigningMethodHS256 {
+			if jwtCfg.signingMethod == jwt.SigningMethodHS256 {
 				mapClaims := jwt.MapClaims(claims)
-				newToken := jwt.NewWithClaims(sm, mapClaims)
-				signedToken, err := newToken.SignedString(privKey)
+				newToken := jwt.NewWithClaims(jwtCfg.signingMethod, mapClaims)
+				signedToken, err := newToken.SignedString(jwtCfg.signingKey)
 				if err != nil {
 					t.Errorf("failed to sign modified token for hash mismatch test: %v", err)
 					continue
 				}
 
 				// Validate user from modified token
-				config := Config{signingMethod: sm, signingKey: pubKey, blinder: blinder}
-				_, err = GetValidUserFromToken(signedToken, config)
+
+				_, err = jwtCfg.GetValidUserFromToken(signedToken)
 				if err == nil {
-					t.Errorf("expected error due to hash mismatch for method %v, blinder '%s'", sm.Alg(), blinder)
+					t.Errorf("expected error due to hash mismatch for method %v, blinder '%s'", jwtCfg.signingMethod.Alg(), blinder)
 				}
 			}
 
 			// Test wrong signing method for token validation
 			var wrongMethod jwt.SigningMethod = jwt.SigningMethodHS256
-			if sm == jwt.SigningMethodHS256 {
+			if jwtCfg.signingMethod == jwt.SigningMethodHS256 {
 				wrongMethod = jwt.SigningMethodEdDSA
 			}
-			_, err = GetClaimsFromToken(token, wrongMethod, pubKey)
+			wrongCopy := jwtCfg.Copy()
+			wrongCopy.signingMethod = wrongMethod
+
+			_, err = wrongCopy.GetClaimsFromToken(token)
 			if err == nil {
-				t.Errorf("expected error for wrong signing method %v validating token signed with %v", wrongMethod.Alg(), sm.Alg())
+				t.Errorf("expected error for wrong signing method %v validating token signed with %v", wrongMethod.Alg(), jwtCfg.signingMethod.Alg())
 			}
 
 			// Test malformed Authorization headers
 			header := http.Header{}
 			header.Set("Authorization", "JWT") // no token
-			_, err = SafeExtractUserIdFromHeader(header, sm, pubKey)
+			_, err = jwtCfg.SafeExtractUserIdFromHeader(header)
 			if err == nil {
-				t.Errorf("expected error for malformed Authorization header (no token), method %v", sm.Alg())
+				t.Errorf("expected error for malformed Authorization header (no token), method %v", jwtCfg.signingMethod.Alg())
 			}
 
 			header.Set("Authorization", "JWT"+token) // no space
-			_, err = SafeExtractUserIdFromHeader(header, sm, pubKey)
+			_, err = jwtCfg.SafeExtractUserIdFromHeader(header)
 			if err == nil {
-				t.Errorf("expected error for malformed Authorization header (no space), method %v", sm.Alg())
+				t.Errorf("expected error for malformed Authorization header (no space), method %v", jwtCfg.signingMethod.Alg())
 			}
 
 			header.Set("Authorization", "Bearer "+token) // wrong scheme
-			_, err = SafeExtractUserIdFromHeader(header, sm, pubKey)
+			_, err = jwtCfg.SafeExtractUserIdFromHeader(header)
 			if err == nil {
-				t.Errorf("expected error for malformed Authorization header (wrong scheme), method %v", sm.Alg())
+				t.Errorf("expected error for malformed Authorization header (wrong scheme), method %v", jwtCfg.signingMethod.Alg())
 			}
 
 			// Test expired token
@@ -332,15 +359,15 @@ func TestCornerCases(t *testing.T) {
 					ExpiresAt: jwt.NewNumericDate(time.Now().Add(-time.Minute)),
 				},
 			}
-			expTokenObj := jwt.NewWithClaims(sm, expiredClaims)
-			expToken, err := expTokenObj.SignedString(privKey)
+			expTokenObj := jwt.NewWithClaims(jwtCfg.signingMethod, expiredClaims)
+			expToken, err := expTokenObj.SignedString(jwtCfg.signingKey)
 			if err != nil {
-				t.Errorf("failed to sign expired token, method %v: %v", sm.Alg(), err)
+				t.Errorf("failed to sign expired token, method %v: %v", jwtCfg.signingMethod.Alg(), err)
 				continue
 			}
-			_, err = GetClaimsFromToken(expToken, sm, pubKey)
+			_, err = jwtCfg.GetClaimsFromToken(expToken)
 			if err == nil {
-				t.Errorf("expected error for expired token, method %v", sm.Alg())
+				t.Errorf("expected error for expired token, method %v", jwtCfg.signingMethod.Alg())
 			}
 
 			// Test not-before token (nbf in future)
@@ -357,15 +384,15 @@ func TestCornerCases(t *testing.T) {
 					ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Hour)),
 				},
 			}
-			nbfTokenObj := jwt.NewWithClaims(sm, nbfClaims)
-			nbfToken, err := nbfTokenObj.SignedString(privKey)
+			nbfTokenObj := jwt.NewWithClaims(jwtCfg.signingMethod, nbfClaims)
+			nbfToken, err := nbfTokenObj.SignedString(jwtCfg.signingKey)
 			if err != nil {
-				t.Errorf("failed to sign nbf token, method %v: %v", sm.Alg(), err)
+				t.Errorf("failed to sign nbf token, method %v: %v", jwtCfg.signingMethod.Alg(), err)
 				continue
 			}
-			_, err = GetClaimsFromToken(nbfToken, sm, pubKey)
+			_, err = jwtCfg.GetClaimsFromToken(nbfToken)
 			if err == nil {
-				t.Errorf("expected error for not-before token, method %v", sm.Alg())
+				t.Errorf("expected error for not-before token, method %v", jwtCfg.signingMethod.Alg())
 			}
 		}
 	}
@@ -379,13 +406,13 @@ func TestCornerCases(t *testing.T) {
 		go func(i int) {
 			defer wg.Done()
 			user := User{ID: bson.NewObjectID().Hex()}
-			blinder := "concurrent-blinder"
-			token, err := GenerateTokenFromModel(user, blinder, jwt.SigningMethodHS256, hsKey)
+
+			token, err := hmacJWtCfg.GenerateTokenFromModel(user)
 			if err != nil {
 				t.Errorf("concurrent HS256 token generation failed: %v", err)
 				return
 			}
-			claims, err := GetClaimsFromToken(token, jwt.SigningMethodHS256, hsKey)
+			claims, err := hmacJWtCfg.GetClaimsFromToken(token)
 			if err != nil {
 				t.Errorf("concurrent HS256 token validation failed: %v", err)
 				return
@@ -398,13 +425,12 @@ func TestCornerCases(t *testing.T) {
 		go func(i int) {
 			defer wg.Done()
 			user := User{ID: bson.NewObjectID().Hex()}
-			blinder := "concurrent-blinder"
-			token, err := GenerateTokenFromModel(user, blinder, jwt.SigningMethodEdDSA, edPriv)
+			token, err := edJwtCFG.GenerateTokenFromModel(user)
 			if err != nil {
 				t.Errorf("concurrent Ed25519 token generation failed: %v", err)
 				return
 			}
-			claims, err := GetClaimsFromToken(token, jwt.SigningMethodEdDSA, edPub)
+			claims, err := edJwtCFG.GetClaimsFromToken(token)
 			if err != nil {
 				t.Errorf("concurrent Ed25519 token validation failed: %v", err)
 				return

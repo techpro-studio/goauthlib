@@ -9,7 +9,7 @@ import (
 
 const CurrentUserContextKey = "current_user_key"
 
-func UserMiddlewareFactory(config Config) gohttplib.Middleware {
+func UserMiddlewareFactory(config JWTConfig) gohttplib.Middleware {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 			tokenStr := GetTokenFromRequest(req)
@@ -17,7 +17,7 @@ func UserMiddlewareFactory(config Config) gohttplib.Middleware {
 				gohttplib.HTTP401().Write(w)
 				return
 			}
-			user, err := GetValidUserFromToken(tokenStr, config)
+			user, err := config.GetValidUserFromToken(tokenStr)
 			if err != nil {
 				gohttplib.HTTP401().Write(w)
 			}

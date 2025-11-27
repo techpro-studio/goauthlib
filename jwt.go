@@ -12,8 +12,44 @@ import (
 	"strings"
 )
 
-func GenerateTokenFromModel(model User, blinder string, signingMethod jwt.SigningMethod, signingKey any) (string, error) {
-	hash := GenerateTokenHash(model, blinder)
+type JWTConfig struct {
+	signingMethod   jwt.SigningMethod
+	signingKey      any
+	verificationKey any
+	blinder         string
+}
+
+func (config JWTConfig) SigningMethod() jwt.SigningMethod {
+	return config.signingMethod
+}
+
+func (config JWTConfig) SigningKey() any {
+	return config.signingKey
+}
+
+func (config JWTConfig) VerificationKey() any {
+	return config.verificationKey
+}
+
+func (config JWTConfig) Blinder() string {
+	return config.blinder
+}
+
+func (config JWTConfig) Copy() JWTConfig {
+	return JWTConfig{
+		signingMethod:   config.signingMethod,
+		signingKey:      config.signingKey,
+		verificationKey: config.verificationKey,
+		blinder:         config.blinder,
+	}
+}
+
+func NewJWTConfig(signingMethod jwt.SigningMethod, signingKey any, verificationKey any, blinder string) *JWTConfig {
+	return &JWTConfig{signingMethod: signingMethod, signingKey: signingKey, verificationKey: verificationKey, blinder: blinder}
+}
+
+func (config JWTConfig) GenerateTokenFromModel(model User) (string, error) {
+	hash := GenerateTokenHash(model, config.blinder)
 
 	claims := struct {
 		Hash string `json:"hash"`
@@ -25,21 +61,21 @@ func GenerateTokenFromModel(model User, blinder string, signingMethod jwt.Signin
 			Issuer: "auth",
 		},
 	}
-	tokenObj := jwt.NewWithClaims(signingMethod, claims)
+	tokenObj := jwt.NewWithClaims(config.signingMethod, claims)
 
-	token, err := tokenObj.SignedString(signingKey)
+	token, err := tokenObj.SignedString(config.signingKey)
 	if err != nil {
 		return "", err
 	}
 	return token, nil
 }
 
-func GetClaimsFromToken(token string, currentSigningMethod jwt.SigningMethod, currentSigningKey any) (map[string]any, error) {
+func (config JWTConfig) GetClaimsFromToken(token string) (map[string]any, error) {
 	tokenObj, err := jwt.ParseWithClaims(token, &jwt.MapClaims{}, func(token *jwt.Token) (any, error) {
-		if token.Method.Alg() != currentSigningMethod.Alg() {
+		if token.Method.Alg() != config.signingMethod.Alg() {
 			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
 		}
-		return currentSigningKey, nil
+		return config.verificationKey, nil
 	})
 
 	if err != nil {
@@ -79,7 +115,7 @@ func GenerateTokenHash(model User, blinder string) string {
 	return hex.EncodeToString(sha.Sum(nil))
 }
 
-func SafeExtractUserIdFromHeader(h http.Header, currentSigningMethod jwt.SigningMethod, signingKey any) (string, error) {
+func (config JWTConfig) SafeExtractUserIdFromHeader(h http.Header) (string, error) {
 	// Check if Authorization header exists
 	authHeader, ok := h["Authorization"]
 	if !ok || len(authHeader) == 0 {
@@ -94,7 +130,7 @@ func SafeExtractUserIdFromHeader(h http.Header, currentSigningMethod jwt.Signing
 
 	token := tokenParts[1]
 
-	claims, err := GetClaimsFromToken(token, currentSigningMethod, signingKey)
+	claims, err := config.GetClaimsFromToken(token)
 	if err != nil {
 		return "", err
 	}
@@ -112,8 +148,8 @@ func SafeExtractUserIdFromHeader(h http.Header, currentSigningMethod jwt.Signing
 	return userIdFromJwt, nil
 }
 
-func GetValidUserFromToken(token string, config Config) (*User, error) {
-	claims, err := GetClaimsFromToken(token, config.signingMethod, config.signingKey)
+func (config JWTConfig) GetValidUserFromToken(token string) (*User, error) {
+	claims, err := config.GetClaimsFromToken(token)
 	if err != nil {
 		return nil, err
 	}
