@@ -8,7 +8,7 @@ import (
 type mongoUser struct {
 	ID       bson.ObjectID              `bson:"_id"`
 	Entities []mongoAuthorizationEntity `bson:"entities"`
-	Info     map[string]any             `bson:"info"`
+	Info     map[string]any             `bson:"info,omitempty"`
 	Deleted  bool                       `bson:"deleted"`
 	Services []string                   `bson:"services"`
 }
